@@ -1,2 +1,32 @@
-# cairngraph
-CairnGraph: grounded, traceable, blast-radius-aware visual navigation for the CairnStone graph.
+# CairnGraph
+
+CairnGraph is the visual graph layer for CairnStone.
+
+It turns CairnStone chains, HEAD stones, refs, receipts, graph edges, GitHub source files, verification events, and blast-radius evidence into grounded, navigable diagrams.
+
+CairnGraph is not just a diagram renderer. It is intended to become the visual operating system for the CairnStone graph.
+
+## Core promise
+
+Every visible node should be traceable back to evidence.
+
+A CairnGraph view should answer:
+
+- What stone or ref is this node grounded in?
+- Which chain and HEAD does it belong to?
+- Which files, commits, tests, receipts, and graph edges support it?
+- What is the blast radius if this node changes?
+- Can I navigate from the diagram to the exact source window?
+
+## Initial goals
+
+- Visualize any CairnStone chain manifest.
+- Resolve HEAD before rendering.
+- Prefer grounded nodes over inferred nodes.
+- Carry exact `source_refs` into every diagram artifact.
+- Support blast-radius, timeline, architecture, file, function, ref, and BytePlane views.
+- Provide renderers for Mermaid first, then interactive HTML/SVG/Canvas graph views.
+
+## Repository status
+
+This repo is the new home for the CairnGraph roadmap, specs, engine scaffold, renderer scaffold, blast-radius engine, timeline engine, and Cloudflare Worker adapter.
