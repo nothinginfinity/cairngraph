@@ -1,0 +1,21 @@
+{
+  "name": "cairngraph",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Grounded, traceable, blast-radius-aware visual navigation for the CairnStone graph.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "check": "tsc --noEmit"
+  },
+  "keywords": [
+    "cairnstone",
+    "graph",
+    "visualization",
+    "blast-radius",
+    "mermaid",
+    "cloudflare"
+  ],
+  "author": "nothinginfinity",
+  "license": "MIT"
+}
