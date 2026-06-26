@@ -25,18 +25,17 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
     this.apiToken = config.apiToken;
     this.manifestPathTemplate = config.manifestPathTemplate ?? "/chains/{chain}/manifest";
     this.stonePathTemplate = config.stonePathTemplate ?? "/v1/stones/{hash}";
-    // Explicitly bind to globalThis.fetch so the Cloudflare Workers runtime
-    // never throws "Illegal invocation" regardless of how the bundler
-    // hoists or minifies the fetch reference.
+    // Explicitly call globalThis.fetch so the Cloudflare Workers runtime never
+    // throws "Illegal invocation" regardless of how the bundler hoists the ref.
     this.fetchImpl = config.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
   }
 
   async getChainManifest(chain: string): Promise<CairnStoneChainManifest> {
-    // CairnStone V5 exposes chain manifests only via the MCP JSON-RPC endpoint.
+    // CairnStone V5 exposes chain manifests only via MCP JSON-RPC.
     // There is no REST GET /chains/{chain}/manifest route.
     const url = `${this.baseUrl}/mcp`;
 
-    const rpcBody = {
+    const rpcBody = JSON.stringify({
       jsonrpc: "2.0",
       id: 1,
       method: "tools/call",
@@ -44,36 +43,19 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
         name: "cairnstone_get_chain_manifest",
         arguments: { chain }
       }
-    };
+    });
 
-    let response: Response | undefined;
-    try {
-      response = await this.fetchImpl(url, {
-        method: "POST",
-        headers: this.headers({ "content-type": "application/json" })
-      });
-    } catch (err: unknown) {
-      const e = asError(err);
-      throw new CairnStoneNetworkError(
-        `CairnStone MCP fetch failed at stage=fetch url=${url}: ${e.message}`,
-        { stage: "fetch", url, errorName: e.name, errorMessage: e.message, stack: e.stack }
-      );
-    }
-
-    // Re-send body separately so the arrow wrapper body is not closed over
-    // before the headers object is constructed (avoids a subtle ordering issue).
-    // We cannot pass body in the first call because headers() must be called
-    // after construction. Re-issue with body:
+    let response: Response;
     try {
       response = await this.fetchImpl(url, {
         method: "POST",
         headers: this.headers({ "content-type": "application/json" }),
-        body: JSON.stringify(rpcBody)
+        body: rpcBody
       });
     } catch (err: unknown) {
       const e = asError(err);
       throw new CairnStoneNetworkError(
-        `CairnStone MCP fetch failed at stage=fetch url=${url}: ${e.message}`,
+        `CairnStone MCP fetch failed url=${url}: ${e.message}`,
         { stage: "fetch", url, errorName: e.name, errorMessage: e.message, stack: e.stack }
       );
     }
@@ -100,17 +82,17 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
 
     // Unwrap MCP envelope: { jsonrpc, id, result: { content: [{ type: "text", text: "..." }] } }
     const rpcRecord = rpc as Record<string, unknown>;
-    if (rpcRecord.error) {
-      const rpcErr = rpcRecord.error as Record<string, unknown>;
+    if (rpcRecord["error"]) {
+      const rpcErr = rpcRecord["error"] as Record<string, unknown>;
       throw new CairnStoneNetworkError(
-        `CairnStone MCP tool error: ${rpcErr.message ?? JSON.stringify(rpcErr)}`,
+        `CairnStone MCP tool error: ${String(rpcErr["message"] ?? JSON.stringify(rpcErr))}`,
         { stage: "mcp_tool_error", url, rpcError: rpcErr }
       );
     }
 
-    const result = rpcRecord.result as Record<string, unknown> | undefined;
-    const content = result?.content as Array<Record<string, unknown>> | undefined;
-    const text = content?.[0]?.text;
+    const result = rpcRecord["result"] as Record<string, unknown> | undefined;
+    const content = result?.["content"] as Array<Record<string, unknown>> | undefined;
+    const text = content?.[0]?.["text"];
 
     if (typeof text !== "string") {
       throw new CairnStoneNetworkError(
@@ -140,7 +122,7 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
 
   private async getJson<T>(path: string): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    let response: Response | undefined;
+    let response: Response;
 
     try {
       response = await this.fetchImpl(url, {
@@ -150,7 +132,7 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
     } catch (err: unknown) {
       const e = asError(err);
       throw new CairnStoneNetworkError(
-        `CairnStone fetch failed at stage=fetch url=${url}: ${e.message}`,
+        `CairnStone fetch failed url=${url}: ${e.message}`,
         { stage: "fetch", url, errorName: e.name, errorMessage: e.message, stack: e.stack }
       );
     }
@@ -176,8 +158,8 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
   }
 
   private headers(extra?: Record<string, string>): HeadersInit {
-    const headers: Record<string, string> = { accept: "application/json", ...extra };
-    if (this.apiToken) headers.authorization = `Bearer ${this.apiToken}`;
+    const headers: Record<string, string> = { accept: "application/json", ...(extra ?? {}) };
+    if (this.apiToken) headers["authorization"] = `Bearer ${this.apiToken}`;
     return headers;
   }
 }
@@ -193,14 +175,14 @@ export class CairnStoneNetworkError extends Error {
 }
 
 export function createCairnStoneHttpClientFromEnv(env: Record<string, unknown>): CairnStoneHttpClient | undefined {
-  const baseUrl = stringValue(env.CAIRNSTONE_V5_BASE_URL);
+  const baseUrl = stringValue(env["CAIRNSTONE_V5_BASE_URL"]);
   if (!baseUrl) return undefined;
 
   return new CairnStoneHttpClient({
     baseUrl,
-    apiToken: stringValue(env.CAIRNSTONE_V5_API_TOKEN) || undefined,
-    manifestPathTemplate: stringValue(env.CAIRNSTONE_V5_MANIFEST_PATH_TEMPLATE) || undefined,
-    stonePathTemplate: stringValue(env.CAIRNSTONE_V5_STONE_PATH_TEMPLATE) || undefined
+    apiToken: stringValue(env["CAIRNSTONE_V5_API_TOKEN"]) || undefined,
+    manifestPathTemplate: stringValue(env["CAIRNSTONE_V5_MANIFEST_PATH_TEMPLATE"]) || undefined,
+    stonePathTemplate: stringValue(env["CAIRNSTONE_V5_STONE_PATH_TEMPLATE"]) || undefined
   });
 }
 
