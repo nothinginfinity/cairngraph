@@ -97,11 +97,16 @@ ${nodes.map(renderNodeCard).join("\n")}
 </section>
 <section class="card graph">
 <h2>Graph explorer</h2>
-<p>Use the explorer to see topology, select nodes, filter edge types, and isolate a selected node neighborhood.</p>
+<p>Use the explorer to see topology, select nodes, filter edge types, and isolate a selected node neighborhood. Drag the background to pan, use zoom controls to adjust the view.</p>
 <div class="controls" aria-label="Graph explorer controls">
 <label>Edge type<select id="edge-filter"><option value="">all edge types</option>${edgeTypes.map((edgeType) => `<option value="${escapeAttr(edgeType)}">${escapeHtml(edgeType)}</option>`).join("")}</select></label>
 <label class="inline-control"><input id="neighborhood-filter" type="checkbox"> selected neighborhood only</label>
 <div class="toolbar-status" id="graph-status">Graph explorer ready</div>
+<div class="controls-zoom" style="display: flex; gap: 8px; margin-top: 10px;">
+<button id="zoom-in" type="button" style="border: 1px solid var(--line); border-radius: 10px; padding: 9px; background: #020617; color: var(--text); cursor: pointer;">zoom in</button>
+<button id="zoom-out" type="button" style="border: 1px solid var(--line); border-radius: 10px; padding: 9px; background: #020617; color: var(--text); cursor: pointer;">zoom out</button>
+<button id="reset-view" type="button" style="border: 1px solid var(--line); border-radius: 10px; padding: 9px; background: #020617; color: var(--text); cursor: pointer;">reset view</button>
+</div>
 </div>
 <div class="explorer-shell"><div class="graph-canvas" id="graph-canvas"></div></div>
 <h2>Selected evidence</h2>
@@ -127,7 +132,81 @@ const graphStatus = document.getElementById('graph-status');
 const graphCanvas = document.getElementById('graph-canvas');
 const cards = Array.from(document.querySelectorAll('[data-node-id]'));
 let selectedNodeId = graph.nodes[0]?.id ?? '';
-function esc(value) { return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+let viewportX = 0;
+let viewportY = 0;
+let viewportW = 900;
+let viewportH = 420;
+const baseWidth = 900;
+const baseHeight = 420;
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+let panStartViewX = 0;
+let panStartViewY = 0;
+
+function resetViewport() {
+  viewportX = 0;
+  viewportY = 0;
+  viewportW = baseWidth;
+  viewportH = baseHeight;
+}
+
+function zoomIn() {
+  const centerX = viewportX + viewportW / 2;
+  const centerY = viewportY + viewportH / 2;
+  const factor = 0.7;
+  const newW = viewportW * factor;
+  const newH = viewportH * factor;
+  viewportX = centerX - newW / 2;
+  viewportY = centerY - newH / 2;
+  viewportW = newW;
+  viewportH = newH;
+}
+
+function zoomOut() {
+  const centerX = viewportX + viewportW / 2;
+  const centerY = viewportY + viewportH / 2;
+  const factor = 1.43;
+  const newW = Math.min(viewportW * factor, baseWidth);
+  const newH = Math.min(viewportH * factor, baseHeight);
+  viewportX = Math.max(0, centerX - newW / 2);
+  viewportY = Math.max(0, centerY - newH / 2);
+  viewportW = newW;
+  viewportH = newH;
+}
+
+function startPan(event) {
+  if (event.target.tagName === 'circle' || event.target.tagName === 'text') return;
+  isPanning = true;
+  const svg = event.currentTarget;
+  const rect = svg.getBoundingClientRect();
+  panStartX = event.clientX || event.touches?.[0]?.clientX;
+  panStartY = event.clientY || event.touches?.[0]?.clientY;
+  panStartViewX = viewportX;
+  panStartViewY = viewportY;
+}
+
+function doPan(event) {
+  if (!isPanning) return;
+  const svg = event.currentTarget;
+  const rect = svg.getBoundingClientRect();
+  const currentX = event.clientX || event.touches?.[0]?.clientX;
+  const currentY = event.clientY || event.touches?.[0]?.clientY;
+  const deltaX = panStartX - currentX;
+  const deltaY = panStartY - currentY;
+  const scaleX = viewportW / rect.width;
+  const scaleY = viewportH / rect.height;
+  viewportX = panStartViewX + deltaX * scaleX;
+  viewportY = panStartViewY + deltaY * scaleY;
+  viewportX = Math.max(0, Math.min(viewportX, baseWidth - viewportW));
+  viewportY = Math.max(0, Math.min(viewportY, baseHeight - viewportH));
+}
+
+function endPan() {
+  isPanning = false;
+}
+
+function esc(value) { return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',\"'\":'&#39;'}[ch])); }
 function searchable(node) { return [node.id, node.kind, node.label, node.grounding, JSON.stringify(node.evidence ?? {})].join(' ').toLowerCase(); }
 function matchingNodeIds() {
   const query = searchInput.value.trim().toLowerCase();
@@ -172,6 +251,80 @@ function edgeLine(edge) {
   const source = graph.nodes.find(item => item.id === edge.from);
   return '<div class="edge"><strong>' + esc(edge.edge_type) + '</strong> ' + esc(source?.label) + ' → ' + esc(target?.label) + '<button type="button" data-jump="' + esc(edge.to) + '">to</button><button type="button" data-jump="' + esc(edge.from) + '">from</button><br><small>' + esc(edge.label ?? '') + '</small></div>';
 }
+let viewportX = 0;
+let viewportY = 0;
+let viewportW = 900;
+let viewportH = 420;
+const baseWidth = 900;
+const baseHeight = 420;
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+let panStartViewX = 0;
+let panStartViewY = 0;
+
+function resetViewport() {
+  viewportX = 0;
+  viewportY = 0;
+  viewportW = baseWidth;
+  viewportH = baseHeight;
+}
+
+function zoomIn() {
+  const centerX = viewportX + viewportW / 2;
+  const centerY = viewportY + viewportH / 2;
+  const factor = 0.7;
+  const newW = viewportW * factor;
+  const newH = viewportH * factor;
+  viewportX = centerX - newW / 2;
+  viewportY = centerY - newH / 2;
+  viewportW = newW;
+  viewportH = newH;
+}
+
+function zoomOut() {
+  const centerX = viewportX + viewportW / 2;
+  const centerY = viewportY + viewportH / 2;
+  const factor = 1.43;
+  const newW = Math.min(viewportW * factor, baseWidth);
+  const newH = Math.min(viewportH * factor, baseHeight);
+  viewportX = Math.max(0, centerX - newW / 2);
+  viewportY = Math.max(0, centerY - newH / 2);
+  viewportW = newW;
+  viewportH = newH;
+}
+
+function startPan(event) {
+  if (event.target.tagName === 'circle' || event.target.tagName === 'text') return;
+  isPanning = true;
+  const svg = event.currentTarget;
+  const rect = svg.getBoundingClientRect();
+  panStartX = event.clientX || event.touches?.[0]?.clientX;
+  panStartY = event.clientY || event.touches?.[0]?.clientY;
+  panStartViewX = viewportX;
+  panStartViewY = viewportY;
+}
+
+function doPan(event) {
+  if (!isPanning) return;
+  const svg = event.currentTarget;
+  const rect = svg.getBoundingClientRect();
+  const currentX = event.clientX || event.touches?.[0]?.clientX;
+  const currentY = event.clientY || event.touches?.[0]?.clientY;
+  const deltaX = panStartX - currentX;
+  const deltaY = panStartY - currentY;
+  const scaleX = viewportW / rect.width;
+  const scaleY = viewportH / rect.height;
+  viewportX = panStartViewX + deltaX * scaleX;
+  viewportY = panStartViewY + deltaY * scaleY;
+  viewportX = Math.max(0, Math.min(viewportX, baseWidth - viewportW));
+  viewportY = Math.max(0, Math.min(viewportY, baseHeight - viewportH));
+}
+
+function endPan() {
+  isPanning = false;
+}
+
 function renderGraphExplorer(nodeIds) {
   const activeNodes = graph.nodes.filter(node => nodeIds.has(node.id));
   const edgeType = edgeFilter.value;
@@ -182,8 +335,8 @@ function renderGraphExplorer(nodeIds) {
     graphStatus.textContent = 'Showing 0 nodes and 0 edges';
     return;
   }
-  const width = 900;
-  const height = 420;
+  const width = baseWidth;
+  const height = baseHeight;
   const centerX = width / 2;
   const centerY = height / 2;
   const radius = Math.max(90, Math.min(180, 42 + activeNodes.length * 7));
@@ -205,8 +358,18 @@ function renderGraphExplorer(nodeIds) {
     const label = truncate(node.label, 24);
     return '<g class="graph-node ' + (isSelected ? 'selected' : '') + ' ' + (isNeighbor ? 'neighbor' : '') + '" data-graph-node-id="' + esc(node.id) + '" transform="translate(' + point.x + ' ' + point.y + ')"><circle r="18"></circle><text x="24" y="4">' + esc(label) + '</text><title>' + esc(node.label) + '</title></g>';
   }).join('');
-  graphCanvas.innerHTML = '<svg role="img" aria-label="Interactive CairnGraph topology" viewBox="0 0 ' + width + ' ' + height + '">' + edgeSvg + nodeSvg + '</svg>';
+  graphCanvas.innerHTML = '<svg role="img" aria-label="Interactive CairnGraph topology" data-graph-viewport="enabled" viewBox="' + Math.round(viewportX) + ' ' + Math.round(viewportY) + ' ' + Math.round(viewportW) + ' ' + Math.round(viewportH) + '">' + edgeSvg + nodeSvg + '</svg>';
   graphStatus.textContent = 'Showing ' + activeNodes.length + ' nodes and ' + activeEdges.length + ' edges';
+  
+  const svg = graphCanvas.querySelector('svg');
+  svg.addEventListener('mousedown', startPan);
+  svg.addEventListener('mousemove', doPan);
+  svg.addEventListener('mouseup', endPan);
+  svg.addEventListener('mouseleave', endPan);
+  svg.addEventListener('touchstart', startPan);
+  svg.addEventListener('touchmove', doPan);
+  svg.addEventListener('touchend', endPan);
+  
   graphCanvas.querySelectorAll('[data-graph-node-id]').forEach(item => item.addEventListener('click', () => inspect(item.dataset.graphNodeId)));
 }
 function truncate(value, length) { const text = String(value ?? ''); return text.length > length ? text.slice(0, length - 1) + '…' : text; }
@@ -217,6 +380,10 @@ kindFilter.addEventListener('change', applyFilters);
 groundingFilter.addEventListener('change', applyFilters);
 edgeFilter.addEventListener('change', applyFilters);
 neighborhoodFilter.addEventListener('change', applyFilters);
+document.getElementById('zoom-in').addEventListener('click', () => { zoomIn(); applyFilters(); });
+document.getElementById('zoom-out').addEventListener('click', () => { zoomOut(); applyFilters(); });
+document.getElementById('reset-view').addEventListener('click', () => { resetViewport(); applyFilters(); });
+resetViewport();
 applyFilters();
 if (graph.nodes.length) inspect(graph.nodes[0].id);
 </script>
