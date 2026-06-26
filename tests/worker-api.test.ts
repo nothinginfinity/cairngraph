@@ -81,7 +81,8 @@ test("worker renders blast radius HTML", async () => {
   const html = await response.text();
   assert.match(html, /^<!doctype html>/);
   assert.match(html, /Worker Radius/);
-  assert.match(html, /Blast radius status/);
+  assert.match(html, /Blast radius:/);
+  assert.match(html, /blast-summary/);
 });
 
 test("worker still rejects unconfigured live provider through POST provider route", async () => {
