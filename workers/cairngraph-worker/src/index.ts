@@ -1,22 +1,24 @@
 import { groundingReport } from "../../../packages/graph-engine/src/index.js";
 import { createGraphProvider } from "../../../packages/adapters/src/index.js";
-import { renderMermaidFlowchart } from "../../../packages/renderer/src/index.js";
+import { renderHtmlGraph, renderMermaidFlowchart } from "../../../packages/renderer/src/index.js";
 import type { CairnGraph } from "../../../packages/graph-engine/src/types.js";
 import type { GraphProviderName, GraphProviderRequest } from "../../../packages/adapters/src/graph-provider.js";
 
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 
 type WorkerEnv = Record<string, unknown>;
 
 type GraphRequest = GraphProviderRequest & {
   provider?: GraphProviderName;
   mermaid?: boolean;
+  html?: boolean;
   report?: boolean;
 };
 
-type MermaidRequest = GraphRequest & {
+type RenderRequest = GraphRequest & {
   graph?: CairnGraph;
   includeMetadata?: boolean;
+  includeJson?: boolean;
   title?: string;
 };
 
@@ -36,7 +38,7 @@ export default {
           service: "cairngraph-worker",
           version: VERSION,
           deploy_required: false,
-          phase: "2B",
+          phase: "2C",
           providers: providerList(),
           endpoints: endpointList()
         });
@@ -48,8 +50,8 @@ export default {
           name: "cairngraph-worker",
           title: "CairnGraph Worker",
           version: VERSION,
-          phase: "2B",
-          description: "HTTP API scaffold for provider-backed CairnGraph model creation, navigation expansion, reports, and Mermaid rendering.",
+          phase: "2C",
+          description: "HTTP API scaffold for provider-backed CairnGraph model creation, navigation expansion, reports, Mermaid rendering, and browser-ready HTML rendering.",
           providers: providerList(),
           endpoints: endpointList()
         });
@@ -71,10 +73,17 @@ export default {
       }
 
       if (request.method === "POST" && url.pathname === "/render/mermaid") {
-        const body = await readJson<MermaidRequest>(request);
-        const graph = await graphFromMermaidRequest(body);
+        const body = await readJson<RenderRequest>(request);
+        const graph = await graphFromRenderRequest(body);
         const mermaid = renderMermaidFlowchart(graph, { includeMetadata: body.includeMetadata ?? true, title: body.title });
         return json({ ok: true, format: "mermaid", mermaid, report: groundingReport(graph) });
+      }
+
+      if (request.method === "POST" && url.pathname === "/render/html") {
+        const body = await readJson<RenderRequest>(request);
+        const graph = await graphFromRenderRequest(body);
+        const html = renderHtmlGraph(graph, { title: body.title, includeJson: body.includeJson ?? true });
+        return htmlResponse(html);
       }
 
       return json({ ok: false, error: "not_found", endpoints: endpointList() }, 404);
@@ -103,11 +112,12 @@ async function graphFromProvider(body: GraphRequest): Promise<Response> {
     graph: result.graph,
     report: body.report === false ? undefined : groundingReport(result.graph),
     mermaid: body.mermaid ? renderMermaidFlowchart(result.graph, { includeMetadata: true }) : undefined,
+    html: body.html ? renderHtmlGraph(result.graph, { includeJson: false }) : undefined,
     diagnostics: result.diagnostics
   });
 }
 
-async function graphFromMermaidRequest(body: MermaidRequest): Promise<CairnGraph> {
+async function graphFromRenderRequest(body: RenderRequest): Promise<CairnGraph> {
   if (body.graph) return body.graph;
 
   const provider = createGraphProvider(body.provider ?? "payload");
@@ -147,7 +157,8 @@ function endpointList(): Array<{ method: string; path: string; description: stri
     { method: "POST", path: "/graph/from-manifest", description: "Build a CairnGraph model from a CairnStone chain manifest using the payload provider." },
     { method: "POST", path: "/graph/from-v5", description: "Build a CairnGraph model from a V5 chain manifest plus optional V5 stone payloads." },
     { method: "POST", path: "/graph/from-provider", description: "Build a graph through an explicitly selected provider." },
-    { method: "POST", path: "/render/mermaid", description: "Render Mermaid from a graph, manifest, or provider payload." }
+    { method: "POST", path: "/render/mermaid", description: "Render Mermaid from a graph, manifest, or provider payload." },
+    { method: "POST", path: "/render/html", description: "Render browser-ready HTML from a graph, manifest, or provider payload." }
   ];
 }
 
@@ -156,6 +167,16 @@ function json(value: unknown, status = 200): Response {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
+      ...corsHeaders()
+    }
+  });
+}
+
+function htmlResponse(value: string, status = 200): Response {
+  return new Response(value, {
+    status,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
       ...corsHeaders()
     }
   });
