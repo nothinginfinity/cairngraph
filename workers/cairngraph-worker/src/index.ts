@@ -1,11 +1,11 @@
 import { groundingReport } from "../../../packages/graph-engine/src/index.js";
-import { createGraphProvider } from "../../../packages/adapters/src/index.js";
+import { createCairnStoneHttpClientFromEnv, createGraphProvider } from "../../../packages/adapters/src/index.js";
 import { blastRadiusSubgraph, computeBlastRadius, type BlastRadiusOptions } from "../../../packages/blast-radius/src/index.js";
 import { renderBlastRadiusHtml, renderHtmlGraph, renderMermaidFlowchart } from "../../../packages/renderer/src/index.js";
 import type { CairnGraph } from "../../../packages/graph-engine/src/types.js";
 import type { GraphProviderName, GraphProviderRequest } from "../../../packages/adapters/src/graph-provider.js";
 
-const VERSION = "0.5.0";
+const VERSION = "1.0.0-alpha.2";
 
 type WorkerEnv = Record<string, unknown>;
 
@@ -27,48 +27,49 @@ type BlastRadiusRequest = RenderRequest & BlastRadiusOptions;
 
 export default {
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
-    void env;
     const url = new URL(request.url);
 
     try {
       if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
 
       if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
-        return json({ ok: true, service: "cairngraph-worker", version: VERSION, deploy_required: false, phase: "2D", providers: providerList(), endpoints: endpointList() });
+        return json({ ok: true, service: "cairngraph-worker", version: VERSION, deploy_required: false, phase: "v1.0-alpha.2", providers: providerList(env), endpoints: endpointList() });
       }
 
       if (request.method === "GET" && url.pathname === "/manifest") {
-        return json({ schema_version: "1.0.0", name: "cairngraph-worker", title: "CairnGraph Worker", version: VERSION, phase: "2D", providers: providerList(), endpoints: endpointList() });
+        return json({ schema_version: "1.0.0", name: "cairngraph-worker", title: "CairnGraph Worker", version: VERSION, phase: "v1.0-alpha.2", providers: providerList(env), endpoints: endpointList() });
       }
 
-      if (request.method === "POST" && url.pathname === "/graph/from-manifest") return graphFromProvider({ ...(await readJson<GraphRequest>(request)), provider: "payload" });
+      if (request.method === "POST" && url.pathname === "/graph/from-manifest") return graphFromProvider({ ...(await readJson<GraphRequest>(request)), provider: "payload" }, env);
+
       if (request.method === "POST" && url.pathname === "/graph/from-v5") {
         const body = await readJson<GraphRequest>(request);
-        return graphFromProvider({ ...body, provider: body.provider ?? "payload" });
+        return graphFromProvider({ ...body, provider: body.provider ?? "payload" }, env);
       }
-      if (request.method === "POST" && url.pathname === "/graph/from-provider") return graphFromProvider(await readJson<GraphRequest>(request));
+
+      if (request.method === "POST" && url.pathname === "/graph/from-provider") return graphFromProvider(await readJson<GraphRequest>(request), env);
 
       if (request.method === "POST" && url.pathname === "/graph/blast-radius") {
         const body = await readJson<BlastRadiusRequest>(request);
-        const graph = await graphFromRenderRequest(body);
+        const graph = await graphFromRenderRequest(body, env);
         const result = computeBlastRadius(graph, blastOptions(body));
         return json({ ok: result.ok, result, graph: blastRadiusSubgraph(graph, result) }, result.ok ? 200 : 400);
       }
 
       if (request.method === "POST" && url.pathname === "/render/mermaid") {
         const body = await readJson<RenderRequest>(request);
-        const graph = await graphFromRenderRequest(body);
+        const graph = await graphFromRenderRequest(body, env);
         return json({ ok: true, format: "mermaid", mermaid: renderMermaidFlowchart(graph, { includeMetadata: body.includeMetadata ?? true, title: body.title }), report: groundingReport(graph) });
       }
 
       if (request.method === "POST" && url.pathname === "/render/html") {
         const body = await readJson<RenderRequest>(request);
-        return htmlResponse(renderHtmlGraph(await graphFromRenderRequest(body), { title: body.title, includeJson: body.includeJson ?? true }));
+        return htmlResponse(renderHtmlGraph(await graphFromRenderRequest(body, env), { title: body.title, includeJson: body.includeJson ?? true }));
       }
 
       if (request.method === "POST" && url.pathname === "/render/blast-radius/html") {
         const body = await readJson<BlastRadiusRequest>(request);
-        return htmlResponse(renderBlastRadiusHtml(await graphFromRenderRequest(body), { ...blastOptions(body), title: body.title, includeJson: body.includeJson ?? true }));
+        return htmlResponse(renderBlastRadiusHtml(await graphFromRenderRequest(body, env), { ...blastOptions(body), title: body.title, includeJson: body.includeJson ?? true }));
       }
 
       return json({ ok: false, error: "not_found", endpoints: endpointList() }, 404);
@@ -78,19 +79,22 @@ export default {
   }
 };
 
-async function graphFromProvider(body: GraphRequest): Promise<Response> {
-  const provider = createGraphProvider(body.provider ?? "payload");
-  const result = await provider.buildGraph({ chain: body.chain, manifest: body.manifest, stones: body.stones, navigation: body.navigation });
+async function graphFromProvider(body: GraphRequest, env: WorkerEnv): Promise<Response> {
+  const result = await providerFor(body.provider ?? "payload", env).buildGraph({ chain: body.chain, manifest: body.manifest, stones: body.stones, navigation: body.navigation });
   if (!result.ok || !result.graph) return json(result, 400);
   return json({ ok: true, provider: result.provider, graph: result.graph, report: body.report === false ? undefined : groundingReport(result.graph), mermaid: body.mermaid ? renderMermaidFlowchart(result.graph, { includeMetadata: true }) : undefined, html: body.html ? renderHtmlGraph(result.graph, { includeJson: false }) : undefined, diagnostics: result.diagnostics });
 }
 
-async function graphFromRenderRequest(body: RenderRequest): Promise<CairnGraph> {
+async function graphFromRenderRequest(body: RenderRequest, env: WorkerEnv): Promise<CairnGraph> {
   if (body.graph) return body.graph;
-  const provider = createGraphProvider(body.provider ?? "payload");
-  const result = await provider.buildGraph({ chain: body.chain, manifest: body.manifest, stones: body.stones, navigation: body.navigation });
+  const result = await providerFor(body.provider ?? "payload", env).buildGraph({ chain: body.chain, manifest: body.manifest, stones: body.stones, navigation: body.navigation });
   if (!result.ok || !result.graph) throw new Error(result.error ?? "graph or manifest is required");
   return result.graph;
+}
+
+function providerFor(name: GraphProviderName, env: WorkerEnv) {
+  if (name === "cairnstone-v5") return createGraphProvider(name, createCairnStoneHttpClientFromEnv(env));
+  return createGraphProvider(name);
 }
 
 function blastOptions(body: BlastRadiusRequest): BlastRadiusOptions {
@@ -101,10 +105,11 @@ async function readJson<T>(request: Request): Promise<T> {
   try { return (await request.json()) as T; } catch { throw new Error("Invalid JSON body"); }
 }
 
-function providerList(): Array<{ name: GraphProviderName; status: string; description: string }> {
+function providerList(env: WorkerEnv): Array<{ name: GraphProviderName; status: string; description: string }> {
+  const liveConfigured = typeof env.CAIRNSTONE_V5_BASE_URL === "string" && env.CAIRNSTONE_V5_BASE_URL.length > 0;
   return [
     { name: "payload", status: "implemented", description: "Builds graphs from manifests and stone payloads supplied in the request body." },
-    { name: "cairnstone-v5", status: "scaffold", description: "Provider boundary for future live CairnStone V5 fetching." }
+    { name: "cairnstone-v5", status: liveConfigured ? "configured" : "scaffold", description: "Provider boundary for live CairnStone V5 fetching." }
   ];
 }
 
