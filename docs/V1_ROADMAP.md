@@ -45,7 +45,7 @@ Scope:
 
 ## v1.0-alpha.5
 
-Status: next.
+Status: complete, deployed, and live verified.
 
 Scope:
 
@@ -53,13 +53,28 @@ Scope:
 - extend Live Verification to assert interactive shell markers
 - record live alpha.4 verification
 
-## v1.0-beta
+## Phase 3F
+
+Status: complete in safe live-chain mode.
 
 Scope:
 
-- live provider deployed in preview
-- live verification workflow extended for chain fetch
-- CairnStone graph HEAD updated with deployed v1 orientation
+- add live chain verification workflow
+- verify live chain routes fail safely when provider is not configured
+- prepare strict live-provider verification path
+
+## v1.0-beta
+
+Status: next.
+
+Scope:
+
+- configure live provider in preview
+- run strict live chain verification
+- verify `/graph/chain/:chain` against real CairnStone data
+- verify `/graph/chain/:chain/html` against real CairnStone data
+- record deployed v1 orientation in CairnStone
+- set a new CairnStone HEAD when graph tooling permits
 
 ## v1.0
 
