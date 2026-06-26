@@ -9,7 +9,7 @@ const manifest = JSON.parse(
   readFileSync("examples/loop-engineer-template-review.manifest.json", "utf8")
 ) as CairnStoneChainManifest;
 
-test("renders browser-ready HTML graph view", () => {
+test("renders browser-ready interactive HTML graph view", () => {
   const graph = addGroundingNavigation(buildCairnGraphFromChainManifest(manifest));
   const html = renderHtmlGraph(graph, { title: "Test CairnGraph", includeJson: true });
 
@@ -17,7 +17,13 @@ test("renders browser-ready HTML graph view", () => {
   assert.match(html, /Test CairnGraph/);
   assert.match(html, /Grounding report/);
   assert.match(html, /Selected evidence/);
+  assert.match(html, /Interactive controls/);
+  assert.match(html, /node-search/);
+  assert.match(html, /kind-filter/);
+  assert.match(html, /grounding-filter/);
+  assert.match(html, /visible-count/);
   assert.match(html, /cairngraph-data/);
   assert.match(html, /source lines/);
+  assert.match(html, /data-jump/);
   assert.doesNotMatch(html, /undefined/);
 });
