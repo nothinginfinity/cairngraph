@@ -21,7 +21,7 @@ async function checkHealth() {
   const body = await response.json();
   assert.equal(body.ok, true);
   assert.equal(body.service, "cairngraph-worker");
-  checks.push({ endpoint: "GET /health", ok: true, phase: body.phase });
+  checks.push({ endpoint: "GET /health", ok: true, phase: body.phase, version: body.version });
 }
 
 async function checkManifest() {
@@ -49,7 +49,12 @@ async function checkRenderHtml() {
   assert.match(html, /Phase 3A Live HTML Verification/);
   assert.match(html, /Selected evidence/);
   assert.match(html, /loop-engineer-template-review/);
-  checks.push({ endpoint: "POST /render/html", ok: true, bytes: html.length });
+  assert.match(html, /Interactive controls/);
+  assert.match(html, /node-search/);
+  assert.match(html, /kind-filter/);
+  assert.match(html, /grounding-filter/);
+  assert.match(html, /visible-count/);
+  checks.push({ endpoint: "POST /render/html", ok: true, bytes: html.length, interactive_shell: true });
 }
 
 async function checkBlastRadiusJson() {
@@ -86,7 +91,8 @@ async function checkBlastRadiusHtml() {
   assert.match(html, /Phase 3A Live Blast Radius Verification/);
   assert.match(html, /Blast radius status/);
   assert.match(html, /risk score/);
-  checks.push({ endpoint: "POST /render/blast-radius/html", ok: true, bytes: html.length });
+  assert.match(html, /Interactive controls/);
+  checks.push({ endpoint: "POST /render/blast-radius/html", ok: true, bytes: html.length, interactive_shell: true });
 }
 
 async function postJson(path, body) {
