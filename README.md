@@ -20,9 +20,7 @@ A CairnGraph view should answer:
 
 ## Phase status
 
-Phase 1A implemented the first pipeline:
-
-CairnStone chain manifest -> CairnGraph model -> Mermaid flowchart
+Phase 1A implemented the first pipeline.
 
 Phase 1B added ref-level grounding.
 
@@ -34,34 +32,17 @@ Phase 2A added the Worker API scaffold.
 
 Phase 2B added the graph provider abstraction.
 
-Phase 2C adds the browser-ready HTML renderer:
+Phase 2C added the browser-ready HTML renderer.
 
-- renderHtmlGraph
-- POST /render/html
-- click-to-inspect evidence panel
-- grounding metrics
-- source links
+Phase 2D adds blast-radius view rendering:
+
+- computeBlastRadius
+- blastRadiusSubgraph
+- renderBlastRadiusHtml
+- POST /graph/blast-radius
+- POST /render/blast-radius/html
 
 Deploy is not required yet.
-
-## Implemented files
-
-- packages/graph-engine/src/types.ts
-- packages/graph-engine/src/from-chain-manifest.ts
-- packages/graph-engine/src/navigation.ts
-- packages/graph-engine/src/grounding-report.ts
-- packages/adapters/src/cairnstone-v5.ts
-- packages/adapters/src/graph-provider.ts
-- packages/renderer/src/mermaid.ts
-- packages/renderer/src/html.ts
-- workers/cairngraph-worker/src/index.ts
-- examples/loop-engineer-template-review.manifest.json
-- tests/graph-engine.test.ts
-- tests/cairnstone-v5-adapter.test.ts
-- tests/grounding-navigation.test.ts
-- tests/graph-provider.test.ts
-- tests/html-renderer.test.ts
-- tests/worker-api.test.ts
 
 ## Repository status
 
