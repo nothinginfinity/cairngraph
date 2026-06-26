@@ -16,7 +16,7 @@ POST /render/blast-radius/html
 
 ## v1 live endpoints
 
-Implemented in v1.0-alpha.3:
+Implemented in v1.0-alpha.3 and pending CI verification:
 
 ```text
 GET /graph/chain/:chain
