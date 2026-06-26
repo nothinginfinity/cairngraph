@@ -1,1 +1,1 @@
-$(cat /tmp/cairngraph/packages/renderer/src/html.ts)
+<file:/tmp/cairngraph/packages/renderer/src/html.ts
