@@ -30,5 +30,11 @@ test("renders browser-ready interactive HTML graph view", () => {
   assert.match(html, /cairngraph-data/);
   assert.match(html, /source lines/);
   assert.match(html, /data-jump/);
+  // v1.1-alpha.2: Zoom and pan controls
+  assert.match(html, /zoom-in/);
+  assert.match(html, /zoom-out/);
+  assert.match(html, /reset-view/);
+  assert.match(html, /data-graph-viewport/);
+  assert.match(html, /Drag the background to pan/);
   assert.doesNotMatch(html, /undefined/);
 });
