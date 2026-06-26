@@ -12,6 +12,8 @@ export function renderHtmlGraph(graph: CairnGraph, options: HtmlRenderOptions = 
   const nodes = graph.nodes;
   const edges = graph.edges;
   const includeJson = options.includeJson ?? true;
+  const kinds = Array.from(new Set(nodes.map((node) => node.kind))).sort();
+  const groundings = Array.from(new Set(nodes.map((node) => node.grounding))).sort();
 
   return `<!doctype html>
 <html lang="en">
@@ -25,25 +27,31 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMac
 header { padding: 28px; border-bottom: 1px solid var(--line); background: linear-gradient(135deg, #020617, #172554); }
 h1 { margin: 0 0 8px; font-size: 28px; }
 p { color: var(--muted); }
-main { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 16px; padding: 16px; }
+main { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 16px; padding: 16px; }
 .card { background: rgba(17, 24, 39, 0.92); border: 1px solid var(--line); border-radius: 16px; padding: 16px; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
 .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .metric { border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
 .metric strong { display: block; font-size: 22px; }
+.controls { display: grid; gap: 10px; margin: 14px 0; }
+.controls label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+input, select { border: 1px solid var(--line); border-radius: 10px; padding: 9px; background: #020617; color: var(--text); }
 .node-list { display: flex; flex-direction: column; gap: 8px; max-height: 70vh; overflow: auto; }
 .node { border: 1px solid var(--line); border-radius: 12px; padding: 10px; cursor: pointer; background: #0b1220; }
 .node:hover { border-color: var(--accent); }
 .node.selected { border-color: var(--accent); outline: 1px solid var(--accent); }
+.node.hidden { display: none; }
 .kind { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
 .label { margin-top: 4px; font-weight: 700; }
 .evidence { margin-top: 8px; color: var(--muted); font-size: 12px; word-break: break-word; }
 .graph { min-height: 70vh; }
 .edge { border-left: 3px solid var(--accent); padding: 8px 0 8px 12px; margin: 8px 0; color: var(--muted); }
+.edge button { margin-left: 8px; border: 1px solid var(--line); border-radius: 999px; background: #020617; color: var(--text); cursor: pointer; }
 a { color: var(--accent); }
 pre { overflow: auto; background: #020617; color: #e5e7eb; border-radius: 12px; padding: 12px; }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 12px; margin: 0 4px 4px 0; }
 .complete { color: var(--good); }
 .incomplete { color: var(--warn); }
+.toolbar-status { color: var(--muted); font-size: 12px; }
 @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -61,17 +69,24 @@ ${metric("Edges", report.edge_count)}
 ${metric("Unresolved", report.unresolved_count)}
 ${metric("Complete", report.complete ? "yes" : "no", report.complete ? "complete" : "incomplete")}
 </div>
+<h3>Interactive controls</h3>
+<div class="controls" aria-label="Graph filters">
+<label>Search nodes<input id="node-search" type="search" placeholder="label, hash, ref, path, keyword"></label>
+<label>Node kind<select id="kind-filter"><option value="">all kinds</option>${kinds.map((kind) => `<option value="${escapeAttr(kind)}">${escapeHtml(kind)}</option>`).join("")}</select></label>
+<label>Grounding<select id="grounding-filter"><option value="">all grounding</option>${groundings.map((grounding) => `<option value="${escapeAttr(grounding)}">${escapeHtml(grounding)}</option>`).join("")}</select></label>
+<div class="toolbar-status" id="visible-count">Showing ${nodes.length} nodes</div>
+</div>
 <h3>Nodes</h3>
-<div class="node-list">
+<div class="node-list" id="node-list">
 ${nodes.map(renderNodeCard).join("\n")}
 </div>
 </section>
 <section class="card graph">
 <h2>Selected evidence</h2>
-<p id="selected-help">Click a node to inspect its evidence and outgoing navigation edges.</p>
+<p id="selected-help">Click a node to inspect its evidence and incoming/outgoing navigation edges.</p>
 <div id="selected"></div>
 <h2>Edges</h2>
-<div>${edges.map(renderEdge).join("\n")}</div>
+<div id="edge-list">${edges.map(renderEdge).join("\n")}</div>
 ${includeJson ? `<h2>Graph JSON</h2><pre>${escapeHtml(JSON.stringify(graph, null, 2))}</pre>` : ""}
 </section>
 </main>
@@ -80,25 +95,54 @@ ${includeJson ? `<h2>Graph JSON</h2><pre>${escapeHtml(JSON.stringify(graph, null
 const payload = JSON.parse(document.getElementById('cairngraph-data').textContent);
 const graph = payload.graph;
 const selected = document.getElementById('selected');
+const searchInput = document.getElementById('node-search');
+const kindFilter = document.getElementById('kind-filter');
+const groundingFilter = document.getElementById('grounding-filter');
+const visibleCount = document.getElementById('visible-count');
 const cards = Array.from(document.querySelectorAll('[data-node-id]'));
 function esc(value) { return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+function searchable(node) { return [node.id, node.kind, node.label, node.grounding, JSON.stringify(node.evidence ?? {})].join(' ').toLowerCase(); }
+function applyFilters() {
+  const query = searchInput.value.trim().toLowerCase();
+  const kind = kindFilter.value;
+  const grounding = groundingFilter.value;
+  let shown = 0;
+  cards.forEach(card => {
+    const node = graph.nodes.find(item => item.id === card.dataset.nodeId);
+    const match = node && (!query || searchable(node).includes(query)) && (!kind || node.kind === kind) && (!grounding || node.grounding === grounding);
+    card.classList.toggle('hidden', !match);
+    if (match) shown += 1;
+  });
+  visibleCount.textContent = 'Showing ' + shown + ' of ' + graph.nodes.length + ' nodes';
+}
 function inspect(nodeId) {
   cards.forEach(card => card.classList.toggle('selected', card.dataset.nodeId === nodeId));
   const node = graph.nodes.find(item => item.id === nodeId);
+  if (!node) return;
   const outgoing = graph.edges.filter(edge => edge.from === nodeId);
   const incoming = graph.edges.filter(edge => edge.to === nodeId);
   selected.innerHTML = '<h3>' + esc(node.label) + '</h3>' +
     '<p><span class="badge">' + esc(node.kind) + '</span> <span class="badge">' + esc(node.grounding) + '</span></p>' +
-    '<pre>' + esc(JSON.stringify(node.evidence, null, 2)) + '</pre>' +
+    evidenceHtml(node) +
     '<h3>Outgoing</h3>' + (outgoing.length ? outgoing.map(edgeLine).join('') : '<p>No outgoing edges.</p>') +
     '<h3>Incoming</h3>' + (incoming.length ? incoming.map(edgeLine).join('') : '<p>No incoming edges.</p>');
+}
+function evidenceHtml(node) {
+  const evidence = node.evidence ?? {};
+  const source = evidence.source_url ? '<p><a href="' + esc(evidence.source_url) + '" target="_blank" rel="noreferrer">source lines</a></p>' : '';
+  return source + '<pre>' + esc(JSON.stringify(evidence, null, 2)) + '</pre>';
 }
 function edgeLine(edge) {
   const target = graph.nodes.find(item => item.id === edge.to);
   const source = graph.nodes.find(item => item.id === edge.from);
-  return '<div class="edge"><strong>' + esc(edge.edge_type) + '</strong> ' + esc(source?.label) + ' → ' + esc(target?.label) + '<br><small>' + esc(edge.label ?? '') + '</small></div>';
+  return '<div class="edge"><strong>' + esc(edge.edge_type) + '</strong> ' + esc(source?.label) + ' → ' + esc(target?.label) + '<button type="button" data-jump="' + esc(edge.to) + '">to</button><button type="button" data-jump="' + esc(edge.from) + '">from</button><br><small>' + esc(edge.label ?? '') + '</small></div>';
 }
 cards.forEach(card => card.addEventListener('click', () => inspect(card.dataset.nodeId)));
+selected.addEventListener('click', event => { const target = event.target; if (target && target.dataset && target.dataset.jump) inspect(target.dataset.jump); });
+searchInput.addEventListener('input', applyFilters);
+kindFilter.addEventListener('change', applyFilters);
+groundingFilter.addEventListener('change', applyFilters);
+applyFilters();
 if (graph.nodes.length) inspect(graph.nodes[0].id);
 </script>
 </body>
@@ -114,7 +158,7 @@ function renderNodeCard(node: CairnGraphNode): string {
 ${node.evidence.stone_hash ? `stone ${escapeHtml(shortHash(node.evidence.stone_hash))}<br>` : ""}
 ${node.evidence.ref_id ? `ref ${escapeHtml(node.evidence.ref_id)}<br>` : ""}
 ${node.evidence.raw_key ? `raw ${escapeHtml(node.evidence.raw_key)}<br>` : ""}
-${sourceUrl ? `<a href="${escapeAttr(sourceUrl)}" target="_blank" rel="noreferrer">source</a>` : ""}
+${sourceUrl ? `<a href="${escapeAttr(sourceUrl)}" target="_blank" rel="noreferrer">source lines</a>` : ""}
 </div>
 </article>`;
 }
