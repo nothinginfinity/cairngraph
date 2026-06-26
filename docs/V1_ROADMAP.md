@@ -73,9 +73,19 @@ Scope:
 - verify `/health` exposes the live provider boundary
 - prepare strict provider-config verification path
 
+## Phase 3H
+
+Status: strict beta handoff ready.
+
+Scope:
+
+- add strict beta runbook
+- document required Worker runtime variables
+- document strict verification order and failure meanings
+
 ## v1.0-beta
 
-Status: next.
+Status: waiting for real CairnStone V5 HTTP base URL.
 
 Scope:
 
