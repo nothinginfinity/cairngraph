@@ -41,7 +41,47 @@
       "author": "chatgpt",
       "created_at": "2026-06-23T02:28:44.724Z",
       "is_head": true,
-      "lod5": "CairnStone vNext LoopPlane + HarnessPlane + VerificationPlane notes: 337 lines, 5 refs, 3.25x ratio, 1 flags"
+      "lod5": "CairnStone vNext LoopPlane + HarnessPlane + VerificationPlane notes: 337 lines, 5 refs, 3.25x ratio, 1 flags",
+      "metadata": {
+        "github": {
+          "owner": "AI-Builder-Club",
+          "repo": "loop-engineer-template",
+          "path": "content.txt",
+          "ref": "main"
+        }
+      },
+      "refs": [
+        {
+          "ref_id": "fsl:1adf5e14c179ebb9",
+          "stone_hash": "c6580ddea6224aa08c602ac38051a97e79e84fab412927bdc5dc8618d22491eb",
+          "path": "content.txt",
+          "line_start": 1,
+          "line_end": 80,
+          "keywords": ["concept", "cairnstone", "query", "ztgi", "compression", "byteplane"],
+          "preview": "CairnStone vNext concepts and routing notes",
+          "raw_key": "raw/5fa48030bbf9cba9693e962fc241751cd8513e28621b4db97064ddd5b031d821.txt"
+        },
+        {
+          "ref_id": "fsl:70390017fe7a88df",
+          "stone_hash": "c6580ddea6224aa08c602ac38051a97e79e84fab412927bdc5dc8618d22491eb",
+          "path": "content.txt",
+          "line_start": 81,
+          "line_end": 160,
+          "keywords": ["stone_hash", "reconstruction", "byteplane", "domains", "exact"],
+          "preview": "Reconstruction and BytePlane bundle model",
+          "raw_key": "raw/5fa48030bbf9cba9693e962fc241751cd8513e28621b4db97064ddd5b031d821.txt"
+        },
+        {
+          "ref_id": "fsl:2fef7153f58bfd1f",
+          "stone_hash": "c6580ddea6224aa08c602ac38051a97e79e84fab412927bdc5dc8618d22491eb",
+          "path": "content.txt",
+          "line_start": 161,
+          "line_end": 240,
+          "keywords": ["byteplane", "verify", "domains", "scripts", "manifest", "receipt"],
+          "preview": "Domain layout, manifests, receipts, and loop contracts",
+          "raw_key": "raw/5fa48030bbf9cba9693e962fc241751cd8513e28621b4db97064ddd5b031d821.txt"
+        }
+      ]
     }
   ],
   "edges": [
