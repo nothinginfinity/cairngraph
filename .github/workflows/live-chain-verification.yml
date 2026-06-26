@@ -1,0 +1,34 @@
+name: Live Chain Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      worker_url:
+        description: CairnGraph Worker URL
+        required: true
+        default: https://cairngraph-worker.jaredtechfit.workers.dev
+      chain:
+        description: CairnStone chain name
+        required: true
+        default: cairngraph
+      require_live_provider:
+        description: Require cairnstone-v5 provider to be configured
+        required: true
+        default: "false"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: rm -f package-lock.json
+      - run: npm install --package-lock=false
+      - run: npm run candidate
+      - run: npm run verify:live-chain
+        env:
+          CAIRNGRAPH_WORKER_URL: ${{ inputs.worker_url }}
+          CAIRNGRAPH_CHAIN: ${{ inputs.chain }}
+          CAIRNGRAPH_REQUIRE_LIVE_PROVIDER: ${{ inputs.require_live_provider }}
