@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { addGroundingNavigation, buildCairnGraphFromChainManifest } from "../packages/graph-engine/src/index.js";
-import { renderHtmlGraph } from "../packages/renderer/src/index.js";
+import { renderHtmlGraph, renderBlastRadiusHtml } from "../packages/renderer/src/index.js";
 import type { CairnStoneChainManifest } from "../packages/graph-engine/src/types.js";
 
 const manifest = JSON.parse(
@@ -36,5 +36,32 @@ test("renders browser-ready interactive HTML graph view", () => {
   assert.match(html, /reset-view/);
   assert.match(html, /data-graph-viewport/);
   assert.match(html, /Drag the background to pan/);
+  // v1.1-alpha.3: Blast-radius visual overlay (should not appear in normal render)
+  assert.match(html, /data-blast-overlay="disabled"/);
+  assert.doesNotMatch(html, /data-blast-affected="true"/);
+  assert.doesNotMatch(html, /blast-toggle/);
+  assert.doesNotMatch(html, /undefined/);
+});
+
+test("renders blast-radius HTML with visual overlay", () => {
+  const graph = addGroundingNavigation(buildCairnGraphFromChainManifest(manifest));
+  const html = renderBlastRadiusHtml(graph, { title: "Test Blast Radius", rootNodeId: graph.nodes[0]?.id });
+
+  assert.match(html, /^<!doctype html>/);
+  assert.match(html, /Test Blast Radius/);
+  assert.match(html, /Blast radius/);
+  // v1.1-alpha.3: Blast overlay markers
+  assert.match(html, /data-blast-overlay="enabled"/);
+  assert.match(html, /blast-summary/);
+  assert.match(html, /blast-toggle/);
+  assert.match(html, /dim-toggle/);
+  assert.match(html, /data-blast-affected/);
+  assert.match(html, /blast-root|blast-affected/);
+  // Preserve existing UX
+  assert.match(html, /graph-canvas/);
+  assert.match(html, /zoom-in/);
+  assert.match(html, /reset-view/);
+  assert.match(html, /node-search/);
+  assert.match(html, /edge-filter/);
   assert.doesNotMatch(html, /undefined/);
 });
