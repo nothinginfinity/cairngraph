@@ -11,7 +11,14 @@ payload: implemented
 cairnstone-v5: scaffold or configured depending on runtime vars
 ```
 
-## Required Worker variables
+Safe provider config verification is green.
+
+```text
+Live Provider Config
+CAIRNGRAPH_REQUIRE_LIVE_PROVIDER=false
+```
+
+## Required Worker variable
 
 ```text
 CAIRNSTONE_V5_BASE_URL
@@ -30,6 +37,29 @@ Default path templates:
 ```text
 /chains/{chain}/manifest
 /stones/{hash}
+```
+
+## Cloudflare Worker setup
+
+Set the runtime variable in the Worker environment, then redeploy.
+
+Required:
+
+```text
+CAIRNSTONE_V5_BASE_URL=<real CairnStone V5 base URL>
+```
+
+Optional if the live service requires auth:
+
+```text
+CAIRNSTONE_V5_API_TOKEN=<token>
+```
+
+Optional if the live service uses different paths:
+
+```text
+CAIRNSTONE_V5_MANIFEST_PATH_TEMPLATE=<path template>
+CAIRNSTONE_V5_STONE_PATH_TEMPLATE=<path template>
 ```
 
 ## Verification commands
