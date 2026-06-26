@@ -1,9 +1,20 @@
 import { groundingReport } from "../../graph-engine/src/grounding-report.js";
 import type { CairnGraph, CairnGraphEdge, CairnGraphNode } from "../../graph-engine/src/types.js";
 
+export type BlastRadiusMetadata = {
+  ok: boolean;
+  root_node_id?: string;
+  depth: number;
+  direction: string;
+  impacted_node_count: number;
+  impacted_edge_count: number;
+  risk_score: number;
+};
+
 export type HtmlRenderOptions = {
   title?: string;
   includeJson?: boolean;
+  blastMetadata?: BlastRadiusMetadata;
 };
 
 export function renderHtmlGraph(graph: CairnGraph, options: HtmlRenderOptions = {}): string {
@@ -12,9 +23,19 @@ export function renderHtmlGraph(graph: CairnGraph, options: HtmlRenderOptions = 
   const nodes = graph.nodes;
   const edges = graph.edges;
   const includeJson = options.includeJson ?? true;
+  const blast = options.blastMetadata;
   const kinds = Array.from(new Set(nodes.map((node) => node.kind))).sort();
   const groundings = Array.from(new Set(nodes.map((node) => node.grounding))).sort();
   const edgeTypes = Array.from(new Set(edges.map((edge) => edge.edge_type))).sort();
+
+  // Track affected nodes/edges if blast metadata is present
+  const affectedNodeIds = new Set<string>();
+  const affectedEdgeIds = new Set<string>();
+  if (blast && blast.ok) {
+    // Mark nodes/edges that are in the filtered graph as affected
+    nodes.forEach((node) => affectedNodeIds.add(node.id));
+    edges.forEach((edge) => affectedEdgeIds.add(edge.id));
+  }
 
   return `<!doctype html>
 <html lang="en">
@@ -43,6 +64,7 @@ input[type="checkbox"] { width: auto; }
 .node:hover { border-color: var(--accent); }
 .node.selected { border-color: var(--accent); outline: 1px solid var(--accent); }
 .node.hidden { display: none; }
+.node.dim-unaffected { opacity: 0.35; }
 .kind { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
 .label { margin-top: 4px; font-weight: 700; }
 .evidence { margin-top: 8px; color: var(--muted); font-size: 12px; word-break: break-word; }
@@ -52,9 +74,13 @@ input[type="checkbox"] { width: auto; }
 .graph-canvas svg { width: 100%; height: 420px; display: block; }
 .graph-edge { stroke: var(--line); stroke-width: 1.6; opacity: .82; }
 .graph-edge.selected { stroke: var(--accent); stroke-width: 2.5; opacity: 1; }
+.graph-edge.blast-edge { stroke: #ef4444; opacity: 1; }
 .graph-node circle { fill: var(--node); stroke: var(--accent); stroke-width: 1.5; }
 .graph-node.selected circle { fill: #075985; stroke-width: 3; }
 .graph-node.neighbor circle { stroke: var(--good); }
+.graph-node.blast-root circle { fill: #b91c1c; stroke: #fca5a5; stroke-width: 2.5; }
+.graph-node.blast-affected circle { fill: #7c2d12; stroke: #fb923c; stroke-width: 2; }
+.graph-node.dim-unaffected circle { opacity: 0.3; }
 .graph-node text { fill: var(--text); font-size: 11px; pointer-events: none; }
 .graph-node button { cursor: pointer; }
 .graph-empty { padding: 24px; color: var(--muted); }
@@ -63,9 +89,12 @@ input[type="checkbox"] { width: auto; }
 a { color: var(--accent); }
 pre { overflow: auto; background: #020617; color: #e5e7eb; border-radius: 12px; padding: 12px; }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 12px; margin: 0 4px 4px 0; }
+.badge.blast-risk { border-color: #ef4444; color: #fca5a5; }
 .complete { color: var(--good); }
 .incomplete { color: var(--warn); }
 .toolbar-status { color: var(--muted); font-size: 12px; }
+.blast-summary { margin-top: 12px; padding: 12px; border: 1px solid #ef4444; border-radius: 12px; background: rgba(127, 29, 29, 0.3); color: #fca5a5; font-size: 12px; }
+.blast-summary strong { color: #ef4444; }
 @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -73,6 +102,7 @@ pre { overflow: auto; background: #020617; color: #e5e7eb; border-radius: 12px; 
 <header>
 <h1>${escapeHtml(title)}</h1>
 <p>Grounded CairnGraph view for chain <strong>${escapeHtml(graph.source.chain)}</strong>${graph.source.head_hash ? ` with HEAD <code>${escapeHtml(shortHash(graph.source.head_hash))}</code>` : ""}.</p>
+${blast ? blastSummaryPanel(blast) : ""}
 </header>
 <main>
 <section class="card">
@@ -92,15 +122,17 @@ ${metric("Complete", report.complete ? "yes" : "no", report.complete ? "complete
 </div>
 <h3>Nodes</h3>
 <div class="node-list" id="node-list">
-${nodes.map(renderNodeCard).join("\n")}
+${nodes.map((node) => renderNodeCard(node, blast ? affectedNodeIds.has(node.id) : false)).join("\n")}
 </div>
 </section>
-<section class="card graph">
+<section class="card graph" data-blast-overlay="${blast ? "enabled" : "disabled"}">
 <h2>Graph explorer</h2>
 <p>Use the explorer to see topology, select nodes, filter edge types, and isolate a selected node neighborhood. Drag the background to pan, use zoom controls to adjust the view.</p>
 <div class="controls" aria-label="Graph explorer controls">
 <label>Edge type<select id="edge-filter"><option value="">all edge types</option>${edgeTypes.map((edgeType) => `<option value="${escapeAttr(edgeType)}">${escapeHtml(edgeType)}</option>`).join("")}</select></label>
 <label class="inline-control"><input id="neighborhood-filter" type="checkbox"> selected neighborhood only</label>
+${blast ? `<label class="inline-control"><input id="blast-toggle" type="checkbox" checked> show blast overlay</label>` : ""}
+${blast ? `<label class="inline-control"><input id="dim-toggle" type="checkbox"> dim unaffected nodes</label>` : ""}
 <div class="toolbar-status" id="graph-status">Graph explorer ready</div>
 <div class="controls-zoom" style="display: flex; gap: 8px; margin-top: 10px;">
 <button id="zoom-in" type="button" style="border: 1px solid var(--line); border-radius: 10px; padding: 9px; background: #020617; color: var(--text); cursor: pointer;">zoom in</button>
@@ -117,21 +149,26 @@ ${nodes.map(renderNodeCard).join("\n")}
 ${includeJson ? `<h2>Graph JSON</h2><pre>${escapeHtml(JSON.stringify(graph, null, 2))}</pre>` : ""}
 </section>
 </main>
-<script type="application/json" id="cairngraph-data">${escapeHtml(JSON.stringify({ graph }))}</script>
+<script type="application/json" id="cairngraph-data">${escapeHtml(JSON.stringify({ graph, blast }))}</script>
 <script>
 const payload = JSON.parse(document.getElementById('cairngraph-data').textContent);
 const graph = payload.graph;
+const blast = payload.blast;
 const selected = document.getElementById('selected');
 const searchInput = document.getElementById('node-search');
 const kindFilter = document.getElementById('kind-filter');
 const groundingFilter = document.getElementById('grounding-filter');
 const edgeFilter = document.getElementById('edge-filter');
 const neighborhoodFilter = document.getElementById('neighborhood-filter');
+const blastToggle = document.getElementById('blast-toggle');
+const dimToggle = document.getElementById('dim-toggle');
 const visibleCount = document.getElementById('visible-count');
 const graphStatus = document.getElementById('graph-status');
 const graphCanvas = document.getElementById('graph-canvas');
 const cards = Array.from(document.querySelectorAll('[data-node-id]'));
 let selectedNodeId = graph.nodes[0]?.id ?? '';
+let showBlastOverlay = true;
+let dimUnaffected = false;
 let viewportX = 0;
 let viewportY = 0;
 let viewportW = 900;
@@ -143,6 +180,10 @@ let panStartX = 0;
 let panStartY = 0;
 let panStartViewX = 0;
 let panStartViewY = 0;
+
+// Blast-affected tracking
+const blastAffectedNodeIds = blast && blast.ok ? new Set(graph.nodes.map(n => n.id)) : new Set();
+const blastAffectedEdgeIds = blast && blast.ok ? new Set(graph.edges.map(e => e.id)) : new Set();
 
 function resetViewport() {
   viewportX = 0;
@@ -178,8 +219,6 @@ function zoomOut() {
 function startPan(event) {
   if (event.target.tagName === 'circle' || event.target.tagName === 'text') return;
   isPanning = true;
-  const svg = event.currentTarget;
-  const rect = svg.getBoundingClientRect();
   panStartX = event.clientX || event.touches?.[0]?.clientX;
   panStartY = event.clientY || event.touches?.[0]?.clientY;
   panStartViewX = viewportX;
@@ -223,7 +262,14 @@ function matchingNodeIds() {
 }
 function applyFilters() {
   const ids = matchingNodeIds();
-  cards.forEach(card => card.classList.toggle('hidden', !ids.has(card.dataset.nodeId)));
+  cards.forEach(card => {
+    card.classList.toggle('hidden', !ids.has(card.dataset.nodeId));
+    if (dimUnaffected && !blastAffectedNodeIds.has(card.dataset.nodeId)) {
+      card.classList.add('dim-unaffected');
+    } else {
+      card.classList.remove('dim-unaffected');
+    }
+  });
   visibleCount.textContent = 'Showing ' + ids.size + ' of ' + graph.nodes.length + ' nodes';
   renderGraphExplorer(ids);
 }
@@ -237,6 +283,7 @@ function inspect(nodeId) {
   selected.innerHTML = '<h3>' + esc(node.label) + '</h3>' +
     '<p><span class="badge">' + esc(node.kind) + '</span> <span class="badge">' + esc(node.grounding) + '</span></p>' +
     evidenceHtml(node) +
+    (blast && blast.ok && node.id === blast.root_node_id ? '<p><span class="badge blast-risk">BLAST ROOT</span></p>' : '') +
     '<h3>Outgoing</h3>' + (outgoing.length ? outgoing.map(edgeLine).join('') : '<p>No outgoing edges.</p>') +
     '<h3>Incoming</h3>' + (incoming.length ? incoming.map(edgeLine).join('') : '<p>No incoming edges.</p>');
   renderGraphExplorer(matchingNodeIds());
@@ -250,79 +297,6 @@ function edgeLine(edge) {
   const target = graph.nodes.find(item => item.id === edge.to);
   const source = graph.nodes.find(item => item.id === edge.from);
   return '<div class="edge"><strong>' + esc(edge.edge_type) + '</strong> ' + esc(source?.label) + ' → ' + esc(target?.label) + '<button type="button" data-jump="' + esc(edge.to) + '">to</button><button type="button" data-jump="' + esc(edge.from) + '">from</button><br><small>' + esc(edge.label ?? '') + '</small></div>';
-}
-let viewportX = 0;
-let viewportY = 0;
-let viewportW = 900;
-let viewportH = 420;
-const baseWidth = 900;
-const baseHeight = 420;
-let isPanning = false;
-let panStartX = 0;
-let panStartY = 0;
-let panStartViewX = 0;
-let panStartViewY = 0;
-
-function resetViewport() {
-  viewportX = 0;
-  viewportY = 0;
-  viewportW = baseWidth;
-  viewportH = baseHeight;
-}
-
-function zoomIn() {
-  const centerX = viewportX + viewportW / 2;
-  const centerY = viewportY + viewportH / 2;
-  const factor = 0.7;
-  const newW = viewportW * factor;
-  const newH = viewportH * factor;
-  viewportX = centerX - newW / 2;
-  viewportY = centerY - newH / 2;
-  viewportW = newW;
-  viewportH = newH;
-}
-
-function zoomOut() {
-  const centerX = viewportX + viewportW / 2;
-  const centerY = viewportY + viewportH / 2;
-  const factor = 1.43;
-  const newW = Math.min(viewportW * factor, baseWidth);
-  const newH = Math.min(viewportH * factor, baseHeight);
-  viewportX = Math.max(0, centerX - newW / 2);
-  viewportY = Math.max(0, centerY - newH / 2);
-  viewportW = newW;
-  viewportH = newH;
-}
-
-function startPan(event) {
-  if (event.target.tagName === 'circle' || event.target.tagName === 'text') return;
-  isPanning = true;
-  const svg = event.currentTarget;
-  const rect = svg.getBoundingClientRect();
-  panStartX = event.clientX || event.touches?.[0]?.clientX;
-  panStartY = event.clientY || event.touches?.[0]?.clientY;
-  panStartViewX = viewportX;
-  panStartViewY = viewportY;
-}
-
-function doPan(event) {
-  if (!isPanning) return;
-  const svg = event.currentTarget;
-  const rect = svg.getBoundingClientRect();
-  const currentX = event.clientX || event.touches?.[0]?.clientX;
-  const currentY = event.clientY || event.touches?.[0]?.clientY;
-  const deltaX = panStartX - currentX;
-  const deltaY = panStartY - currentY;
-  const scaleX = viewportW / rect.width;
-  const scaleY = viewportH / rect.height;
-  viewportX = panStartViewX + deltaX * scaleX;
-  viewportY = panStartViewY + deltaY * scaleY;
-  viewportX = Math.max(0, Math.min(viewportX, baseWidth - viewportW));
-  viewportY = Math.max(0, Math.min(viewportY, baseHeight - viewportH));
-}
-
-function endPan() {
-  isPanning = false;
 }
 
 function renderGraphExplorer(nodeIds) {
@@ -349,14 +323,18 @@ function renderGraphExplorer(nodeIds) {
     const from = positions.get(edge.from);
     const to = positions.get(edge.to);
     const selectedEdge = edge.from === selectedNodeId || edge.to === selectedNodeId;
-    return '<line class="graph-edge ' + (selectedEdge ? 'selected' : '') + '" x1="' + from.x + '" y1="' + from.y + '" x2="' + to.x + '" y2="' + to.y + '"><title>' + esc(edge.edge_type + ': ' + (edge.label ?? '')) + '</title></line>';
+    const isBlastEdge = showBlastOverlay && blastAffectedEdgeIds.has(edge.id);
+    return '<line class="graph-edge ' + (selectedEdge ? 'selected' : '') + ' ' + (isBlastEdge ? 'blast-edge' : '') + '" x1="' + from.x + '" y1="' + from.y + '" x2="' + to.x + '" y2="' + to.y + '" data-blast-edge="' + (isBlastEdge ? 'true' : 'false') + '"><title>' + esc(edge.edge_type + ': ' + (edge.label ?? '')) + '</title></line>';
   }).join('');
   const nodeSvg = activeNodes.map(node => {
     const point = positions.get(node.id);
     const isSelected = node.id === selectedNodeId;
     const isNeighbor = graph.edges.some(edge => (edge.from === selectedNodeId && edge.to === node.id) || (edge.to === selectedNodeId && edge.from === node.id));
+    const isBlastRoot = showBlastOverlay && blast && blast.ok && node.id === blast.root_node_id;
+    const isBlastAffected = showBlastOverlay && blastAffectedNodeIds.has(node.id);
+    const isDimmed = dimUnaffected && !blastAffectedNodeIds.has(node.id);
     const label = truncate(node.label, 24);
-    return '<g class="graph-node ' + (isSelected ? 'selected' : '') + ' ' + (isNeighbor ? 'neighbor' : '') + '" data-graph-node-id="' + esc(node.id) + '" transform="translate(' + point.x + ' ' + point.y + ')"><circle r="18"></circle><text x="24" y="4">' + esc(label) + '</text><title>' + esc(node.label) + '</title></g>';
+    return '<g class="graph-node ' + (isSelected ? 'selected' : '') + ' ' + (isNeighbor ? 'neighbor' : '') + ' ' + (isBlastRoot ? 'blast-root' : '') + ' ' + (isBlastAffected && !isBlastRoot ? 'blast-affected' : '') + ' ' + (isDimmed ? 'dim-unaffected' : '') + '" data-graph-node-id="' + esc(node.id) + '" data-blast-affected="' + (isBlastAffected ? 'true' : 'false') + '" data-blast-root="' + (isBlastRoot ? 'true' : 'false') + '" transform="translate(' + point.x + ' ' + point.y + ')"><circle r="18"></circle><text x="24" y="4">' + esc(label) + '</text><title>' + esc(node.label) + '</title></g>';
   }).join('');
   graphCanvas.innerHTML = '<svg role="img" aria-label="Interactive CairnGraph topology" data-graph-viewport="enabled" viewBox="' + Math.round(viewportX) + ' ' + Math.round(viewportY) + ' ' + Math.round(viewportW) + ' ' + Math.round(viewportH) + '">' + edgeSvg + nodeSvg + '</svg>';
   graphStatus.textContent = 'Showing ' + activeNodes.length + ' nodes and ' + activeEdges.length + ' edges';
@@ -372,6 +350,7 @@ function renderGraphExplorer(nodeIds) {
   
   graphCanvas.querySelectorAll('[data-graph-node-id]').forEach(item => item.addEventListener('click', () => inspect(item.dataset.graphNodeId)));
 }
+
 function truncate(value, length) { const text = String(value ?? ''); return text.length > length ? text.slice(0, length - 1) + '…' : text; }
 cards.forEach(card => card.addEventListener('click', () => inspect(card.dataset.nodeId)));
 selected.addEventListener('click', event => { const target = event.target; if (target && target.dataset && target.dataset.jump) inspect(target.dataset.jump); });
@@ -380,6 +359,8 @@ kindFilter.addEventListener('change', applyFilters);
 groundingFilter.addEventListener('change', applyFilters);
 edgeFilter.addEventListener('change', applyFilters);
 neighborhoodFilter.addEventListener('change', applyFilters);
+if (blastToggle) blastToggle.addEventListener('change', (e) => { showBlastOverlay = e.target.checked; applyFilters(); });
+if (dimToggle) dimToggle.addEventListener('change', (e) => { dimUnaffected = e.target.checked; applyFilters(); });
 document.getElementById('zoom-in').addEventListener('click', () => { zoomIn(); applyFilters(); });
 document.getElementById('zoom-out').addEventListener('click', () => { zoomOut(); applyFilters(); });
 document.getElementById('reset-view').addEventListener('click', () => { resetViewport(); applyFilters(); });
@@ -391,9 +372,16 @@ if (graph.nodes.length) inspect(graph.nodes[0].id);
 </html>`;
 }
 
-function renderNodeCard(node: CairnGraphNode): string {
+function blastSummaryPanel(blast: BlastRadiusMetadata): string {
+  return `<div id="blast-summary" class="blast-summary">
+<strong>⚡ Blast radius:</strong> depth ${blast.depth} · direction ${escapeHtml(blast.direction)} · impacted ${blast.impacted_node_count} nodes, ${blast.impacted_edge_count} edges · risk score ${blast.risk_score}
+</div>`;
+}
+
+function renderNodeCard(node: CairnGraphNode, isBlastAffected: boolean): string {
   const sourceUrl = node.evidence.source_url;
-  return `<article class="node" data-node-id="${escapeAttr(node.id)}">
+  const blastClass = isBlastAffected ? "data-blast-affected='true'" : "data-blast-affected='false'";
+  return `<article class="node" data-node-id="${escapeAttr(node.id)}" ${blastClass}>
 <div class="kind">${escapeHtml(node.kind)} · ${escapeHtml(node.grounding)}</div>
 <div class="label">${escapeHtml(node.label)}</div>
 <div class="evidence">
