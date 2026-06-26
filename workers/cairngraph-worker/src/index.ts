@@ -1,26 +1,21 @@
-import { buildCairnGraphFromChainManifest, addGroundingNavigation, groundingReport } from "../../../packages/graph-engine/src/index.js";
-import { buildCairnGraphFromV5 } from "../../../packages/adapters/src/index.js";
+import { groundingReport } from "../../../packages/graph-engine/src/index.js";
+import { createGraphProvider } from "../../../packages/adapters/src/index.js";
 import { renderMermaidFlowchart } from "../../../packages/renderer/src/index.js";
 import type { CairnGraph } from "../../../packages/graph-engine/src/types.js";
-import type { BuildGraphFromV5Input } from "../../../packages/adapters/src/cairnstone-v5.js";
+import type { GraphProviderName, GraphProviderRequest } from "../../../packages/adapters/src/graph-provider.js";
 
-const VERSION = "0.2.0";
+const VERSION = "0.3.0";
 
 type WorkerEnv = Record<string, unknown>;
 
-type GraphRequest = {
-  manifest?: unknown;
-  stones?: unknown[];
-  navigation?: boolean;
+type GraphRequest = GraphProviderRequest & {
+  provider?: GraphProviderName;
   mermaid?: boolean;
   report?: boolean;
 };
 
-type MermaidRequest = {
+type MermaidRequest = GraphRequest & {
   graph?: CairnGraph;
-  manifest?: unknown;
-  stones?: unknown[];
-  navigation?: boolean;
   includeMetadata?: boolean;
   title?: string;
 };
@@ -30,78 +25,104 @@ export default {
     void env;
     const url = new URL(request.url);
 
-    if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders() });
-    }
+    try {
+      if (request.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers: corsHeaders() });
+      }
 
-    if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
-      return json({
-        ok: true,
-        service: "cairngraph-worker",
-        version: VERSION,
-        deploy_required: false,
-        phase: "2A",
-        endpoints: endpointList()
-      });
-    }
+      if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
+        return json({
+          ok: true,
+          service: "cairngraph-worker",
+          version: VERSION,
+          deploy_required: false,
+          phase: "2B",
+          providers: providerList(),
+          endpoints: endpointList()
+        });
+      }
 
-    if (request.method === "GET" && url.pathname === "/manifest") {
-      return json({
-        schema_version: "1.0.0",
-        name: "cairngraph-worker",
-        title: "CairnGraph Worker",
-        version: VERSION,
-        phase: "2A",
-        description: "HTTP API scaffold for grounded CairnGraph model creation, navigation expansion, reports, and Mermaid rendering.",
-        endpoints: endpointList()
-      });
-    }
+      if (request.method === "GET" && url.pathname === "/manifest") {
+        return json({
+          schema_version: "1.0.0",
+          name: "cairngraph-worker",
+          title: "CairnGraph Worker",
+          version: VERSION,
+          phase: "2B",
+          description: "HTTP API scaffold for provider-backed CairnGraph model creation, navigation expansion, reports, and Mermaid rendering.",
+          providers: providerList(),
+          endpoints: endpointList()
+        });
+      }
 
-    if (request.method === "POST" && url.pathname === "/graph/from-manifest") {
-      const body = await readJson<GraphRequest>(request);
-      if (!body.manifest) return json({ ok: false, error: "manifest is required" }, 400);
-      const graph = maybeAddNavigation(buildCairnGraphFromChainManifest(body.manifest as never), body.navigation ?? true);
-      return json(graphResponse(graph, body));
-    }
+      if (request.method === "POST" && url.pathname === "/graph/from-manifest") {
+        const body = await readJson<GraphRequest>(request);
+        return graphFromProvider({ ...body, provider: "payload" });
+      }
 
-    if (request.method === "POST" && url.pathname === "/graph/from-v5") {
-      const body = await readJson<GraphRequest>(request);
-      if (!body.manifest) return json({ ok: false, error: "manifest is required" }, 400);
-      const graph = maybeAddNavigation(buildCairnGraphFromV5({ manifest: body.manifest as never, stones: body.stones as BuildGraphFromV5Input["stones"] }), body.navigation ?? true);
-      return json(graphResponse(graph, body));
-    }
+      if (request.method === "POST" && url.pathname === "/graph/from-v5") {
+        const body = await readJson<GraphRequest>(request);
+        return graphFromProvider({ ...body, provider: body.provider ?? "payload" });
+      }
 
-    if (request.method === "POST" && url.pathname === "/render/mermaid") {
-      const body = await readJson<MermaidRequest>(request);
-      const graph = graphFromMermaidRequest(body);
-      const mermaid = renderMermaidFlowchart(graph, { includeMetadata: body.includeMetadata ?? true, title: body.title });
-      return json({ ok: true, format: "mermaid", mermaid, report: groundingReport(graph) });
-    }
+      if (request.method === "POST" && url.pathname === "/graph/from-provider") {
+        const body = await readJson<GraphRequest>(request);
+        return graphFromProvider(body);
+      }
 
-    return json({ ok: false, error: "not_found", endpoints: endpointList() }, 404);
+      if (request.method === "POST" && url.pathname === "/render/mermaid") {
+        const body = await readJson<MermaidRequest>(request);
+        const graph = await graphFromMermaidRequest(body);
+        const mermaid = renderMermaidFlowchart(graph, { includeMetadata: body.includeMetadata ?? true, title: body.title });
+        return json({ ok: true, format: "mermaid", mermaid, report: groundingReport(graph) });
+      }
+
+      return json({ ok: false, error: "not_found", endpoints: endpointList() }, 404);
+    } catch (error) {
+      return json({ ok: false, error: error instanceof Error ? error.message : "unknown error" }, 500);
+    }
   }
 };
 
-function graphFromMermaidRequest(body: MermaidRequest): CairnGraph {
-  if (body.graph) return maybeAddNavigation(body.graph, body.navigation ?? false);
-  if (body.manifest) {
-    if (body.stones) return maybeAddNavigation(buildCairnGraphFromV5({ manifest: body.manifest as never, stones: body.stones as BuildGraphFromV5Input["stones"] }), body.navigation ?? true);
-    return maybeAddNavigation(buildCairnGraphFromChainManifest(body.manifest as never), body.navigation ?? true);
+async function graphFromProvider(body: GraphRequest): Promise<Response> {
+  const provider = createGraphProvider(body.provider ?? "payload");
+  const result = await provider.buildGraph({
+    chain: body.chain,
+    manifest: body.manifest,
+    stones: body.stones,
+    navigation: body.navigation
+  });
+
+  if (!result.ok || !result.graph) {
+    return json(result, 400);
   }
-  throw new Error("graph or manifest is required");
-}
 
-function graphResponse(graph: CairnGraph, request: GraphRequest): Record<string, unknown> {
-  return {
+  return json({
     ok: true,
-    graph,
-    report: request.report === false ? undefined : groundingReport(graph),
-    mermaid: request.mermaid ? renderMermaidFlowchart(graph, { includeMetadata: true }) : undefined
-  };
+    provider: result.provider,
+    graph: result.graph,
+    report: body.report === false ? undefined : groundingReport(result.graph),
+    mermaid: body.mermaid ? renderMermaidFlowchart(result.graph, { includeMetadata: true }) : undefined,
+    diagnostics: result.diagnostics
+  });
 }
 
-function maybeAddNavigation(graph: CairnGraph, enabled: boolean): CairnGraph {
-  return enabled ? addGroundingNavigation(graph) : graph;
+async function graphFromMermaidRequest(body: MermaidRequest): Promise<CairnGraph> {
+  if (body.graph) return body.graph;
+
+  const provider = createGraphProvider(body.provider ?? "payload");
+  const result = await provider.buildGraph({
+    chain: body.chain,
+    manifest: body.manifest,
+    stones: body.stones,
+    navigation: body.navigation
+  });
+
+  if (!result.ok || !result.graph) {
+    throw new Error(result.error ?? "graph or manifest is required");
+  }
+
+  return result.graph;
 }
 
 async function readJson<T>(request: Request): Promise<T> {
@@ -112,13 +133,21 @@ async function readJson<T>(request: Request): Promise<T> {
   }
 }
 
+function providerList(): Array<{ name: GraphProviderName; status: string; description: string }> {
+  return [
+    { name: "payload", status: "implemented", description: "Builds graphs from manifests and stone payloads supplied in the request body." },
+    { name: "cairnstone-v5", status: "scaffold", description: "Provider boundary for future live CairnStone V5 fetching." }
+  ];
+}
+
 function endpointList(): Array<{ method: string; path: string; description: string }> {
   return [
-    { method: "GET", path: "/health", description: "Service health and endpoint summary." },
+    { method: "GET", path: "/health", description: "Service health, providers, and endpoint summary." },
     { method: "GET", path: "/manifest", description: "CairnGraph Worker API manifest." },
-    { method: "POST", path: "/graph/from-manifest", description: "Build a CairnGraph model from a CairnStone chain manifest." },
+    { method: "POST", path: "/graph/from-manifest", description: "Build a CairnGraph model from a CairnStone chain manifest using the payload provider." },
     { method: "POST", path: "/graph/from-v5", description: "Build a CairnGraph model from a V5 chain manifest plus optional V5 stone payloads." },
-    { method: "POST", path: "/render/mermaid", description: "Render Mermaid from a graph, manifest, or V5 payload." }
+    { method: "POST", path: "/graph/from-provider", description: "Build a graph through an explicitly selected provider." },
+    { method: "POST", path: "/render/mermaid", description: "Render Mermaid from a graph, manifest, or provider payload." }
   ];
 }
 
