@@ -25,7 +25,10 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
     this.apiToken = config.apiToken;
     this.manifestPathTemplate = config.manifestPathTemplate ?? "/chains/{chain}/manifest";
     this.stonePathTemplate = config.stonePathTemplate ?? "/stones/{hash}";
-    this.fetchImpl = config.fetchImpl ?? fetch;
+    // Arrow wrapper preserves globalThis as the receiver so the Cloudflare
+    // Workers runtime does not throw "Illegal invocation" when fetch is
+    // called as a detached class-member reference.
+    this.fetchImpl = config.fetchImpl ?? ((input, init) => fetch(input, init));
   }
 
   async getChainManifest(chain: string): Promise<CairnStoneChainManifest> {
@@ -39,22 +42,56 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
   }
 
   private async getJson<T>(path: string): Promise<T> {
-    const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
-      method: "GET",
-      headers: this.headers()
-    });
+    const url = `${this.baseUrl}${path}`;
+    let response: Response | undefined;
 
-    if (!response.ok) {
-      throw new Error(`CairnStone request failed ${response.status} ${response.statusText}`.trim());
+    try {
+      response = await this.fetchImpl(url, {
+        method: "GET",
+        headers: this.headers()
+      });
+    } catch (err: unknown) {
+      const e = asError(err);
+      throw new CairnStoneNetworkError(
+        `CairnStone fetch failed at stage=fetch url=${url}: ${e.message}`,
+        { stage: "fetch", url, errorName: e.name, errorMessage: e.message, stack: e.stack }
+      );
     }
 
-    return (await response.json()) as T;
+    if (!response.ok) {
+      let body = "";
+      try { body = await response.text(); } catch { /* ignore */ }
+      throw new CairnStoneNetworkError(
+        `CairnStone request failed ${response.status} ${response.statusText}`.trim(),
+        { stage: "http", url, status: response.status, statusText: response.statusText, body: body.slice(0, 400) }
+      );
+    }
+
+    try {
+      return (await response.json()) as T;
+    } catch (err: unknown) {
+      const e = asError(err);
+      throw new CairnStoneNetworkError(
+        `CairnStone JSON parse failed url=${url}: ${e.message}`,
+        { stage: "json_parse", url, errorName: e.name, errorMessage: e.message }
+      );
+    }
   }
 
   private headers(): HeadersInit {
     const headers: Record<string, string> = { accept: "application/json" };
     if (this.apiToken) headers.authorization = `Bearer ${this.apiToken}`;
     return headers;
+  }
+}
+
+/** Structured error carrying diagnostic metadata for the debug endpoint. */
+export class CairnStoneNetworkError extends Error {
+  readonly diagnostics: Record<string, unknown>;
+  constructor(message: string, diagnostics: Record<string, unknown>) {
+    super(message);
+    this.name = "CairnStoneNetworkError";
+    this.diagnostics = diagnostics;
   }
 }
 
@@ -76,4 +113,9 @@ function fillTemplate(template: string, values: Record<string, string>): string 
 
 function stringValue(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function asError(value: unknown): { name: string; message: string; stack?: string } {
+  if (value instanceof Error) return value;
+  return { name: "UnknownError", message: String(value) };
 }
