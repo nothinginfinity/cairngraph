@@ -12,6 +12,7 @@ Verification status:
 
 ```text
 verified manually by Jared
+Live Verification workflow green
 ```
 
 Verified endpoints:
@@ -19,20 +20,9 @@ Verified endpoints:
 ```text
 GET /health
 GET /manifest
-```
-
-Phase 3A adds repeatable fixture-backed live verification for:
-
-```text
 POST /render/html
 POST /graph/blast-radius
 POST /render/blast-radius/html
-```
-
-Run:
-
-```text
-npm run verify:live
 ```
 
 Deployment mode:
@@ -53,4 +43,23 @@ render Mermaid
 render HTML
 compute blast radius
 render blast-radius HTML
+support fixture-backed live verification
+```
+
+Live verification command:
+
+```text
+npm run verify:live
+```
+
+GitHub workflow:
+
+```text
+Live Verification
+```
+
+Next phase:
+
+```text
+Phase 3B: re-stone repository and set deployed CairnGraph orientation as HEAD
 ```
