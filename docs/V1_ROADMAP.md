@@ -2,7 +2,7 @@
 
 ## v1.0-alpha.1
 
-Status: complete.
+Status: complete and green after type import fix.
 
 Scope:
 
@@ -13,7 +13,7 @@ Scope:
 
 ## v1.0-alpha.2
 
-Status: complete.
+Status: complete and green after type import fix.
 
 Scope:
 
@@ -23,11 +23,14 @@ Scope:
 
 ## v1.0-alpha.3
 
+Status: implemented.
+
 Scope:
 
 - add live chain endpoint scaffold
 - `GET /graph/chain/:chain`
 - `GET /graph/chain/:chain/html`
+- fail safely when the live provider is not configured
 
 ## v1.0-alpha.4
 
