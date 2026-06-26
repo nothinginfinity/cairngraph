@@ -12,14 +12,17 @@ CairnGraph is not just a diagram renderer. It is intended to become the visual o
 https://cairngraph-worker.jaredtechfit.workers.dev/
 ```
 
-Verified manually:
+Verified:
 
 ```text
 GET /health
 GET /manifest
+POST /render/html
+POST /graph/blast-radius
+POST /render/blast-radius/html
 ```
 
-Fixture-backed live verification:
+Live verification:
 
 ```text
 npm run verify:live
@@ -59,7 +62,9 @@ Phase 2E prepared the deploy candidate.
 
 Phase 2F deployed the first payload-first Worker preview.
 
-Phase 3A adds repeatable live POST verification.
+Phase 3A added repeatable live POST verification.
+
+Phase 3B records the live-verified checkpoint and updates CairnStone graph HEAD.
 
 ## Repository status
 
