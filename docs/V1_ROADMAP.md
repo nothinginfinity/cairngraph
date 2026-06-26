@@ -75,7 +75,7 @@ Scope:
 
 ## Phase 3H
 
-Status: strict beta handoff ready.
+Status: complete and green.
 
 Scope:
 
@@ -85,9 +85,9 @@ Scope:
 
 ## v1.0-beta
 
-Status: waiting for real CairnStone V5 HTTP base URL.
+Status: strict live-provider verification green.
 
-Scope:
+Scope completed:
 
 - set real `CAIRNSTONE_V5_BASE_URL`
 - redeploy Worker
@@ -95,8 +95,12 @@ Scope:
 - run strict live chain verification
 - verify `/graph/chain/:chain` against real CairnStone data
 - verify `/graph/chain/:chain/html` against real CairnStone data
+
+Remaining before v1.0 final:
+
 - record deployed v1 orientation in CairnStone
 - set a new CairnStone HEAD when graph tooling permits
+- prepare final release checklist
 
 ## v1.0
 
