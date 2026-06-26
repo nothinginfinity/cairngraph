@@ -2,4 +2,20 @@
 
 Impact analysis engine for CairnStone graph objects.
 
-Inputs may include stones, refs, files, commits, receipts, or diagram artifacts.
+Phase 2D implements:
+
+- `computeBlastRadius(graph, options)`
+- `blastRadiusSubgraph(graph, result)`
+
+Supported roots:
+
+- node id
+- stone hash
+- ref id
+- default HEAD node
+
+Supported traversal directions:
+
+- outgoing
+- incoming
+- both
