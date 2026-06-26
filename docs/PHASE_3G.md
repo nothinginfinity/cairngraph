@@ -17,6 +17,13 @@ Purpose:
 prove whether the deployed Worker reports cairnstone-v5 as scaffold or configured
 ```
 
+Safe mode status:
+
+```text
+Live Provider Config green
+CAIRNGRAPH_REQUIRE_LIVE_PROVIDER=false
+```
+
 Strict beta mode:
 
 ```text
@@ -28,7 +35,7 @@ This mode fails until the Worker has a valid `CAIRNSTONE_V5_BASE_URL` runtime va
 Current honest status:
 
 ```text
-live provider configuration scaffold added
-actual CairnStone V5 base URL still required
+live provider configuration scaffold verified in safe mode
+actual CairnStone V5 base URL still required for strict mode
 no CairnStone HEAD update claimed
 ```
