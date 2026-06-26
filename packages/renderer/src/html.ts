@@ -380,7 +380,7 @@ function blastSummaryPanel(blast: BlastRadiusMetadata): string {
 
 function renderNodeCard(node: CairnGraphNode, isBlastAffected: boolean): string {
   const sourceUrl = node.evidence.source_url;
-  const blastClass = isBlastAffected ? "data-blast-affected='true'" : "data-blast-affected='false'";
+  const blastClass = isBlastAffected ? `data-blast-affected="true"` : `data-blast-affected="false"`;
   return `<article class="node" data-node-id="${escapeAttr(node.id)}" ${blastClass}>
 <div class="kind">${escapeHtml(node.kind)} · ${escapeHtml(node.grounding)}</div>
 <div class="label">${escapeHtml(node.label)}</div>
