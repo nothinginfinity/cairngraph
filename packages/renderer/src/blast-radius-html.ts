@@ -11,21 +11,17 @@ export function renderBlastRadiusHtml(graph: CairnGraph, options: BlastRadiusHtm
   const result = computeBlastRadius(graph, options);
   const subgraph = blastRadiusSubgraph(graph, result);
   const title = options.title ?? `Blast radius: ${graph.source.chain}`;
-  return renderHtmlGraph(subgraph, { title, includeJson: options.includeJson ?? true }).replace("</header>", `${summaryBlock(result)}</header>`);
-}
-
-function summaryBlock(result: BlastRadiusResult): string {
-  return `<section style="margin-top:16px;padding:12px;border:1px solid #334155;border-radius:12px;background:rgba(15,23,42,.7)">
-<strong>Blast radius status:</strong> ${escapeHtml(result.ok ? "ok" : "error")} ·
-<strong>depth:</strong> ${result.depth} ·
-<strong>direction:</strong> ${escapeHtml(result.direction)} ·
-<strong>impacted nodes:</strong> ${result.impacted_node_count} ·
-<strong>impacted edges:</strong> ${result.impacted_edge_count} ·
-<strong>risk score:</strong> ${result.risk_score}
-${result.error ? `<br><strong>Error:</strong> ${escapeHtml(result.error)}` : ""}
-</section>`;
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char] ?? char));
+  return renderHtmlGraph(subgraph, {
+    title,
+    includeJson: options.includeJson ?? true,
+    blastMetadata: {
+      ok: result.ok,
+      root_node_id: result.root_node_id,
+      depth: result.depth,
+      direction: result.direction,
+      impacted_node_count: result.impacted_node_count,
+      impacted_edge_count: result.impacted_edge_count,
+      risk_score: result.risk_score
+    }
+  });
 }
