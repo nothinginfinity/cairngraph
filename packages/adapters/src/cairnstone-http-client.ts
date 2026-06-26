@@ -24,16 +24,113 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
     this.baseUrl = config.baseUrl.replace(/\/+$/, "");
     this.apiToken = config.apiToken;
     this.manifestPathTemplate = config.manifestPathTemplate ?? "/chains/{chain}/manifest";
-    this.stonePathTemplate = config.stonePathTemplate ?? "/stones/{hash}";
-    // Arrow wrapper preserves globalThis as the receiver so the Cloudflare
-    // Workers runtime does not throw "Illegal invocation" when fetch is
-    // called as a detached class-member reference.
-    this.fetchImpl = config.fetchImpl ?? ((input, init) => fetch(input, init));
+    this.stonePathTemplate = config.stonePathTemplate ?? "/v1/stones/{hash}";
+    // Explicitly bind to globalThis.fetch so the Cloudflare Workers runtime
+    // never throws "Illegal invocation" regardless of how the bundler
+    // hoists or minifies the fetch reference.
+    this.fetchImpl = config.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
   }
 
   async getChainManifest(chain: string): Promise<CairnStoneChainManifest> {
-    const path = fillTemplate(this.manifestPathTemplate, { chain });
-    return this.getJson<CairnStoneChainManifest>(path);
+    // CairnStone V5 exposes chain manifests only via the MCP JSON-RPC endpoint.
+    // There is no REST GET /chains/{chain}/manifest route.
+    const url = `${this.baseUrl}/mcp`;
+
+    const rpcBody = {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: {
+        name: "cairnstone_get_chain_manifest",
+        arguments: { chain }
+      }
+    };
+
+    let response: Response | undefined;
+    try {
+      response = await this.fetchImpl(url, {
+        method: "POST",
+        headers: this.headers({ "content-type": "application/json" })
+      });
+    } catch (err: unknown) {
+      const e = asError(err);
+      throw new CairnStoneNetworkError(
+        `CairnStone MCP fetch failed at stage=fetch url=${url}: ${e.message}`,
+        { stage: "fetch", url, errorName: e.name, errorMessage: e.message, stack: e.stack }
+      );
+    }
+
+    // Re-send body separately so the arrow wrapper body is not closed over
+    // before the headers object is constructed (avoids a subtle ordering issue).
+    // We cannot pass body in the first call because headers() must be called
+    // after construction. Re-issue with body:
+    try {
+      response = await this.fetchImpl(url, {
+        method: "POST",
+        headers: this.headers({ "content-type": "application/json" }),
+        body: JSON.stringify(rpcBody)
+      });
+    } catch (err: unknown) {
+      const e = asError(err);
+      throw new CairnStoneNetworkError(
+        `CairnStone MCP fetch failed at stage=fetch url=${url}: ${e.message}`,
+        { stage: "fetch", url, errorName: e.name, errorMessage: e.message, stack: e.stack }
+      );
+    }
+
+    if (!response.ok) {
+      let body = "";
+      try { body = await response.text(); } catch { /* ignore */ }
+      throw new CairnStoneNetworkError(
+        `CairnStone MCP request failed ${response.status} ${response.statusText}`.trim(),
+        { stage: "http", url, status: response.status, statusText: response.statusText, body: body.slice(0, 400) }
+      );
+    }
+
+    let rpc: unknown;
+    try {
+      rpc = await response.json();
+    } catch (err: unknown) {
+      const e = asError(err);
+      throw new CairnStoneNetworkError(
+        `CairnStone MCP JSON parse failed url=${url}: ${e.message}`,
+        { stage: "json_parse", url, errorName: e.name, errorMessage: e.message }
+      );
+    }
+
+    // Unwrap MCP envelope: { jsonrpc, id, result: { content: [{ type: "text", text: "..." }] } }
+    const rpcRecord = rpc as Record<string, unknown>;
+    if (rpcRecord.error) {
+      const rpcErr = rpcRecord.error as Record<string, unknown>;
+      throw new CairnStoneNetworkError(
+        `CairnStone MCP tool error: ${rpcErr.message ?? JSON.stringify(rpcErr)}`,
+        { stage: "mcp_tool_error", url, rpcError: rpcErr }
+      );
+    }
+
+    const result = rpcRecord.result as Record<string, unknown> | undefined;
+    const content = result?.content as Array<Record<string, unknown>> | undefined;
+    const text = content?.[0]?.text;
+
+    if (typeof text !== "string") {
+      throw new CairnStoneNetworkError(
+        `CairnStone MCP response missing content[0].text`,
+        { stage: "mcp_unwrap", url, result }
+      );
+    }
+
+    let manifest: unknown;
+    try {
+      manifest = JSON.parse(text);
+    } catch (err: unknown) {
+      const e = asError(err);
+      throw new CairnStoneNetworkError(
+        `CairnStone MCP tool result JSON parse failed: ${e.message}`,
+        { stage: "mcp_text_parse", url, text: text.slice(0, 400) }
+      );
+    }
+
+    return manifest as CairnStoneChainManifest;
   }
 
   async getStone(hash: string): Promise<CairnStoneV5StonePayload> {
@@ -78,8 +175,8 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
     }
   }
 
-  private headers(): HeadersInit {
-    const headers: Record<string, string> = { accept: "application/json" };
+  private headers(extra?: Record<string, string>): HeadersInit {
+    const headers: Record<string, string> = { accept: "application/json", ...extra };
     if (this.apiToken) headers.authorization = `Bearer ${this.apiToken}`;
     return headers;
   }
