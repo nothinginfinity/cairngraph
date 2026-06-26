@@ -24,7 +24,7 @@ Status:
 ```text
 v1.0-alpha.1: live HTTP client scaffold committed and green after type import fix
 v1.0-alpha.2: Worker provider wiring committed and green after type import fix
-v1.0-alpha.3: live chain convenience endpoints added
+v1.0-alpha.3: live chain convenience endpoints added, pending CI verification
 ```
 
 Behavior:
