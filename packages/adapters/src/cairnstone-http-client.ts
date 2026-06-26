@@ -22,6 +22,21 @@ export type CairnStoneHttpClientConfig = {
 
 const MCP_DEFAULT_PATH = "/mcp";
 
+/**
+ * Cloudflare Workers extends RequestInit with a `cf` property that controls
+ * edge-cache behaviour. We declare the minimum shape here so TypeScript is
+ * satisfied without depending on @cloudflare/workers-types in this package.
+ */
+type CloudflareRequestInit = RequestInit & {
+  cf?: { cacheTtl?: number; cacheEverything?: boolean };
+};
+
+/** Headers sent on every outbound request to bypass HTTP and edge caches. */
+const NO_CACHE_HEADERS: Record<string, string> = {
+  "cache-control": "no-cache",
+  "pragma": "no-cache",
+};
+
 export class CairnStoneHttpClient implements CairnStoneV5Client {
   private readonly baseUrl: string;
   private readonly apiToken?: string;
@@ -65,11 +80,13 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
 
     let response: Response;
     try {
-      response = await this.fetchImpl(url, {
+      const init: CloudflareRequestInit = {
         method: "POST",
-        headers: this.headers({ "content-type": "application/json" }),
-        body: rpcBody
-      });
+        headers: this.headers({ "content-type": "application/json", ...NO_CACHE_HEADERS }),
+        body: rpcBody,
+        cf: { cacheTtl: 0 },
+      };
+      response = await this.fetchImpl(url, init as RequestInit);
     } catch (err: unknown) {
       const e = asError(err);
       throw new CairnStoneNetworkError(
@@ -143,10 +160,12 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
     let response: Response;
 
     try {
-      response = await this.fetchImpl(url, {
+      const init: CloudflareRequestInit = {
         method: "GET",
-        headers: this.headers()
-      });
+        headers: this.headers(NO_CACHE_HEADERS),
+        cf: { cacheTtl: 0 },
+      };
+      response = await this.fetchImpl(url, init as RequestInit);
     } catch (err: unknown) {
       const e = asError(err);
       throw new CairnStoneNetworkError(

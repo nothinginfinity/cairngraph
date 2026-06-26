@@ -115,7 +115,6 @@ async function liveChainGraph(chain: string, env: WorkerEnv): Promise<Response> 
         details: {
           diagnostic: "Use /debug/cairnstone-provider?chain={chain} for more details",
           manifestPath: `/chains/${chain}/manifest`,
-          note: "CairnStone V5 manifest endpoint is only available via MCP, not REST. REST /chains/{chain}/manifest endpoint needs to be implemented."
         }
       }, 400);
     }
@@ -156,7 +155,6 @@ async function liveChainHtml(chain: string, env: WorkerEnv, searchParams: URLSea
         details: {
           diagnostic: "Use /debug/cairnstone-provider?chain={chain} for more details",
           manifestPath: `/chains/${chain}/manifest`,
-          note: "CairnStone V5 manifest endpoint is only available via MCP, not REST. REST /chains/{chain}/manifest endpoint needs to be implemented."
         }
       }, 400);
     }
@@ -180,9 +178,6 @@ async function liveChainHtml(chain: string, env: WorkerEnv, searchParams: URLSea
 async function graphFromProvider(body: GraphRequest, env: WorkerEnv): Promise<Response> {
   const providerName: GraphProviderName = body.provider ?? "payload";
 
-  // Guard: cairnstone-v5 requires CAIRNSTONE_V5_BASE_URL to be set.
-  // Return the same shape as the GET live-chain routes so callers get a
-  // consistent "not configured" response regardless of which route they use.
   if (providerName === "cairnstone-v5" && !isCairnStoneConfigured(env)) {
     return json({
       ok: false,
@@ -278,7 +273,10 @@ async function debugCairnStoneProvider(chain: string, env: WorkerEnv): Promise<R
   }
   
   const manifestPath = manifestPathTemplate.replace("{chain}", encodeURIComponent(chain));
+  // Canonical URL shown in output — no cache-busting params.
   const manifestUrl = `${baseUrl}${manifestPath}`;
+  // Actual fetch URL — cache-busting ts param forces a fresh origin request.
+  const attemptedUrl = `${manifestUrl}?_cg_debug_ts=${Date.now()}`;
   
   let httpStatus: number | null = null;
   let contentType: string | null = null;
@@ -287,15 +285,24 @@ async function debugCairnStoneProvider(chain: string, env: WorkerEnv): Promise<R
   let errorMessage: string | null = null;
   
   try {
-    const response = await fetch(manifestUrl, { method: "GET", headers: { "accept": "application/json" } });
+    const response = await fetch(attemptedUrl, {
+      method: "GET",
+      headers: {
+        "accept": "application/json",
+        "cache-control": "no-cache",
+        "pragma": "no-cache",
+      },
+      // @ts-expect-error cf is a Cloudflare Workers extension to RequestInit
+      cf: { cacheTtl: 0 },
+    });
     httpStatus = response.status;
     contentType = response.headers.get("content-type");
     
     try {
-      const json = await response.json();
+      const parsed = await response.json();
       jsonParsed = true;
-      if (typeof json === "object" && json !== null && !Array.isArray(json)) {
-        topLevelKeys = Object.keys(json);
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        topLevelKeys = Object.keys(parsed);
       }
     } catch {
       jsonParsed = false;
@@ -312,12 +319,17 @@ async function debugCairnStoneProvider(chain: string, env: WorkerEnv): Promise<R
     manifestPathTemplate,
     manifestPath,
     manifestUrl,
+    attemptedUrl,
     httpStatus,
     contentType,
     jsonParsed,
     topLevelKeys,
     errorMessage,
-    diagnostic: httpStatus === 404 ? "Manifest endpoint not found. CairnStone V5 may only support MCP, not REST." : "See above for details"
+    diagnostic: httpStatus === 404
+      ? "Manifest endpoint returned 404. Verify CairnStone V5 has the REST shim deployed."
+      : httpStatus === 200
+        ? "Provider reachable and returning JSON."
+        : "See httpStatus and errorMessage for details.",
   }, httpStatus === 200 ? 200 : 400);
 }
 
