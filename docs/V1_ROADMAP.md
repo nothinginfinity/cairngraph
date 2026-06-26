@@ -23,7 +23,7 @@ Scope:
 
 ## v1.0-alpha.3
 
-Status: implemented, pending CI verification.
+Status: complete and green.
 
 Scope:
 
@@ -33,6 +33,8 @@ Scope:
 - fail safely when the live provider is not configured
 
 ## v1.0-alpha.4
+
+Status: next.
 
 Scope:
 
