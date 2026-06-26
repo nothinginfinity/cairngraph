@@ -22,3 +22,5 @@ Next validation:
 - wait for CI on the Phase 1D commits
 - fix any TypeScript or test issues
 - re-stone the repo and set the new repository orientation as HEAD when green
+
+Worker deploy is still not required.
