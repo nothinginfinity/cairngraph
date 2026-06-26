@@ -1,0 +1,24 @@
+name: Live Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      worker_url:
+        description: CairnGraph Worker URL
+        required: true
+        default: https://cairngraph-worker.jaredtechfit.workers.dev
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: rm -f package-lock.json
+      - run: npm install --package-lock=false
+      - run: npm run candidate
+      - run: npm run verify:live
+        env:
+          CAIRNGRAPH_WORKER_URL: ${{ inputs.worker_url }}
