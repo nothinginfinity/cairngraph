@@ -16,12 +16,16 @@ POST /render/blast-radius/html
 
 ## v1 live endpoints
 
-Planned live endpoints:
+Implemented in v1.0-alpha.3:
 
 ```text
 GET /graph/chain/:chain
 GET /graph/chain/:chain/html
-GET /graph/chain/:chain/blast-radius
+```
+
+Planned later:
+
+```text
 GET /graph/stone/:hash
 GET /graph/ref/:ref
 ```
