@@ -34,15 +34,25 @@ Phase 2B added the graph provider abstraction.
 
 Phase 2C added the browser-ready HTML renderer.
 
-Phase 2D adds blast-radius view rendering:
+Phase 2D added blast-radius view rendering.
 
-- computeBlastRadius
-- blastRadiusSubgraph
-- renderBlastRadiusHtml
-- POST /graph/blast-radius
-- POST /render/blast-radius/html
+Phase 2E prepares the first deploy candidate:
 
-Deploy is not required yet.
+- candidate script
+- Worker dry-run script
+- deploy-candidate workflow
+- deploy checklist
+- payload-first Worker deployment posture
+
+Deploy is not automatic.
+
+## Validation
+
+```text
+npm install --package-lock=false
+npm run candidate
+npm run worker:deploy:dry
+```
 
 ## Repository status
 
