@@ -13,7 +13,8 @@
     "worker:dev": "wrangler dev workers/cairngraph-worker/src/index.ts --config workers/cairngraph-worker/wrangler.toml",
     "worker:deploy:dry": "wrangler deploy --dry-run --config workers/cairngraph-worker/wrangler.toml",
     "verify:live": "node scripts/verify-live-worker.mjs",
-    "verify:live-chain": "node scripts/verify-live-chain.mjs"
+    "verify:live-chain": "node scripts/verify-live-chain.mjs",
+    "verify:provider-config": "node scripts/check-live-provider-config.mjs"
   },
   "keywords": [
     "cairnstone",
