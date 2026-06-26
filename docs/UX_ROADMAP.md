@@ -18,7 +18,7 @@ standalone renderer compatibility
 
 ## v1.1-alpha.2
 
-Status: implemented, pending CI verification.
+Status: green, Actions verified.
 
 Scope:
 
@@ -30,13 +30,17 @@ dynamic viewBox for viewport management
 
 ## v1.1-alpha.3
 
+Status: implemented, pending CI verification.
+
 Scope:
 
 ```text
-fit-to-view auto-zoom
-keyboard shortcuts (±, arrows)
-scroll wheel zoom support
-blast-radius overlay
+blast-radius visual overlay
+affected node highlighting (root, impacted)
+blast edge visualization
+dim unaffected nodes control
+blast summary panel
+preserved UX (zoom, pan, filters, selection)
 ```
 
 ## v1.1-alpha.4
@@ -44,10 +48,11 @@ blast-radius overlay
 Scope:
 
 ```text
-source and ref inspector
+source and ref inspector (GitHub links)
 stone detail drawer
-GitHub line-range links
 copy evidence payloads
+blast history/replay
+keyboard shortcuts
 ```
 
 ## v1.1-beta
