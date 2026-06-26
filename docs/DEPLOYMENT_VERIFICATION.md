@@ -21,6 +21,20 @@ GET /health
 GET /manifest
 ```
 
+Phase 3A adds repeatable fixture-backed live verification for:
+
+```text
+POST /render/html
+POST /graph/blast-radius
+POST /render/blast-radius/html
+```
+
+Run:
+
+```text
+npm run verify:live
+```
+
 Deployment mode:
 
 ```text
@@ -39,18 +53,4 @@ render Mermaid
 render HTML
 compute blast radius
 render blast-radius HTML
-```
-
-Next verification targets:
-
-```text
-POST /render/html
-POST /graph/blast-radius
-POST /render/blast-radius/html
-```
-
-Next phase:
-
-```text
-Phase 3A: fixture-backed live endpoint verification
 ```
