@@ -47,9 +47,34 @@ const REQUIRED_MARKERS = [
   { name: "inspector-details", desc: "Collapsible evidence JSON details" },
 ];
 
+// Sample CairnGraph payload for testing
+const PAYLOAD = {
+  source: {
+    chain: "example",
+    head_hash: "abc123"
+  },
+  nodes: [
+    { id: "test-1", label: "Test Node", kind: "file", grounding: "grounded", evidence: { source_url: "https://example.com" } }
+  ],
+  edges: []
+};
+
 async function fetchLiveHtml() {
   return new Promise((resolve, reject) => {
-    const req = https.get(WORKER_URL, (res) => {
+    const payload = JSON.stringify(PAYLOAD);
+    
+    const options = {
+      hostname: "cairngraph-worker.jaredtechfit.workers.dev",
+      path: "/render/html",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(payload)
+      },
+      timeout: 10000
+    };
+    
+    const req = https.request(options, (res) => {
       let data = "";
       res.on("data", (chunk) => (data += chunk));
       res.on("end", () => {
@@ -60,11 +85,15 @@ async function fetchLiveHtml() {
         }
       });
     });
+    
     req.on("error", reject);
-    req.setTimeout(10000, () => {
+    req.on("timeout", () => {
       req.destroy();
       reject(new Error("Request timeout"));
     });
+    
+    req.write(payload);
+    req.end();
   });
 }
 
