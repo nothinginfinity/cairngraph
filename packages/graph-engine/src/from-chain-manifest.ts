@@ -4,6 +4,7 @@ import type {
   CairnGraphEdgeType,
   CairnGraphNode,
   CairnStoneChainManifest,
+  CairnStoneCompressedRef,
   CairnStoneManifestEdge,
   CairnStoneManifestNode,
   GroundingStatus
@@ -48,7 +49,7 @@ export function buildCairnGraphFromChainManifest(manifest: CairnStoneChainManife
     stoneIdsByHash.set(stone.hash, stoneNode.id);
 
     edges.push({
-      id: edgeId("contains", chainNodeId, stoneNode.id),
+      id: edgeId(stone.is_head ? "head_of" : "contains", chainNodeId, stoneNode.id),
       from: chainNodeId,
       to: stoneNode.id,
       edge_type: stone.is_head ? "head_of" : "contains",
@@ -57,6 +58,29 @@ export function buildCairnGraphFromChainManifest(manifest: CairnStoneChainManife
       grounding: "grounded",
       evidence: { chain: manifest.chain, stone_hash: stone.hash }
     });
+
+    for (const ref of refsForStone(stone)) {
+      const refNode = refToNode(manifest.chain, stone, ref);
+      nodes.push(refNode);
+      edges.push({
+        id: edgeId("contains_ref", stoneNode.id, refNode.id),
+        from: stoneNode.id,
+        to: refNode.id,
+        edge_type: "contains",
+        label: "contains ref",
+        confidence: 1,
+        grounding: "grounded",
+        evidence: {
+          chain: manifest.chain,
+          stone_hash: stone.hash,
+          ref_id: ref.ref_id,
+          raw_key: ref.raw_key,
+          path: ref.path,
+          line_start: ref.line_start,
+          line_end: ref.line_end
+        }
+      });
+    }
   }
 
   for (const sourceEdge of manifest.edges ?? []) {
@@ -98,6 +122,7 @@ export function buildCairnGraphFromChainManifest(manifest: CairnStoneChainManife
 
 function stoneToNode(chain: string, stone: CairnStoneManifestNode): CairnGraphNode {
   const parsed = parseLod5(stone.lod5 ?? "");
+  const refs = refsForStone(stone);
   const grounding: GroundingStatus = stone.hash ? "grounded" : "unresolved";
 
   return {
@@ -109,7 +134,10 @@ function stoneToNode(chain: string, stone: CairnStoneManifestNode): CairnGraphNo
     evidence: {
       chain,
       stone_hash: stone.hash,
-      short_hash: stone.short_hash
+      short_hash: stone.short_hash,
+      repo: typeof stone.metadata?.repo === "string" ? stone.metadata.repo : undefined,
+      commit: typeof stone.metadata?.commit === "string" ? stone.metadata.commit : undefined,
+      source_url: githubSourceUrl(stone)
     },
     metadata: {
       author: stone.author,
@@ -117,9 +145,35 @@ function stoneToNode(chain: string, stone: CairnStoneManifestNode): CairnGraphNo
       is_head: Boolean(stone.is_head),
       lod5: stone.lod5,
       line_count: parsed.line_count,
-      ref_count: parsed.ref_count,
+      ref_count: refs.length || parsed.ref_count,
       compression_ratio: parsed.compression_ratio,
       flag_count: parsed.flag_count
+    }
+  };
+}
+
+function refToNode(chain: string, stone: CairnStoneManifestNode, ref: CairnStoneCompressedRef): CairnGraphNode {
+  return {
+    id: nodeId("ref", `${stone.hash}:${ref.ref_id}`),
+    kind: "ref",
+    label: `${ref.ref_id} ${ref.path}:${ref.line_start}-${ref.line_end}`,
+    title: ref.preview,
+    grounding: "grounded",
+    evidence: {
+      chain,
+      stone_hash: stone.hash,
+      short_hash: stone.short_hash,
+      ref_id: ref.ref_id,
+      raw_key: ref.raw_key,
+      path: ref.path,
+      line_start: ref.line_start,
+      line_end: ref.line_end,
+      source_url: githubLineUrl(stone, ref)
+    },
+    metadata: {
+      keywords: ref.keywords ?? [],
+      preview: ref.preview,
+      flags: ref.flags ?? []
     }
   };
 }
@@ -147,6 +201,26 @@ function manifestEdgeToGraphEdge(source: CairnStoneManifestEdge, from: string, t
       source_edge_type: source.edge_type
     }
   };
+}
+
+function refsForStone(stone: CairnStoneManifestNode): CairnStoneCompressedRef[] {
+  return stone.refs ?? stone.layers?.lod2?.compressed_index ?? [];
+}
+
+function githubSourceUrl(stone: CairnStoneManifestNode): string | undefined {
+  const github = asRecord(stone.metadata?.github);
+  const owner = stringValue(github.owner);
+  const repo = stringValue(github.repo);
+  const path = stringValue(github.path);
+  const ref = stringValue(github.ref);
+  if (!owner || !repo || !path || !ref) return undefined;
+  return `https://github.com/${owner}/${repo}/blob/${ref}/${path}`;
+}
+
+function githubLineUrl(stone: CairnStoneManifestNode, ref: CairnStoneCompressedRef): string | undefined {
+  const base = githubSourceUrl(stone);
+  if (!base) return undefined;
+  return `${base}#L${ref.line_start}-L${ref.line_end}`;
 }
 
 function normalizeEdgeType(value: string): CairnGraphEdgeType {
@@ -210,4 +284,12 @@ function stableId(value: string): string {
 
 function shortHash(value: string): string {
   return value.slice(0, 12) || "none";
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
 }
