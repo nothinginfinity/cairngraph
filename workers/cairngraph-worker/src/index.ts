@@ -49,6 +49,12 @@ export default {
         return liveChainHtml(liveChain.chain, env, url.searchParams);
       }
 
+      if (request.method === "GET" && url.pathname === "/debug/cairnstone-provider") {
+        const chain = url.searchParams.get("chain");
+        if (!chain) return json({ ok: false, error: "chain query parameter required" }, 400);
+        return debugCairnStoneProvider(chain, env);
+      }
+
       if (request.method === "POST" && url.pathname === "/graph/from-manifest") return graphFromProvider({ ...(await readJson<GraphRequest>(request)), provider: "payload" }, env);
 
       if (request.method === "POST" && url.pathname === "/graph/from-v5") {
@@ -81,6 +87,12 @@ export default {
         return htmlResponse(renderBlastRadiusHtml(await graphFromRenderRequest(body, env), { ...blastOptions(body), title: body.title, includeJson: body.includeJson ?? true }));
       }
 
+      if (request.method === "GET" && url.pathname === "/debug/cairnstone-provider") {
+        const chain = url.searchParams.get("chain");
+        if (!chain) return json({ ok: false, error: "chain query parameter required" }, 400);
+        return debugCairnStoneProvider(chain, env);
+      }
+
       return json({ ok: false, error: "not_found", endpoints: endpointList() }, 404);
     } catch (error) {
       return json({ ok: false, error: error instanceof Error ? error.message : "unknown error" }, 500);
@@ -89,16 +101,68 @@ export default {
 };
 
 async function liveChainGraph(chain: string, env: WorkerEnv): Promise<Response> {
-  const result = await providerFor("cairnstone-v5", env).buildGraph({ chain, navigation: true });
-  if (!result.ok || !result.graph) return json(result, 400);
-  return json({ ok: true, provider: result.provider, chain, graph: result.graph, report: groundingReport(result.graph), diagnostics: result.diagnostics });
+  try {
+    const result = await providerFor("cairnstone-v5", env).buildGraph({ chain, navigation: true });
+    if (!result.ok || !result.graph) {
+      return json({
+        ok: false,
+        provider: "cairnstone-v5",
+        chain,
+        error: result.error ?? "graph provider failed",
+        details: {
+          diagnostic: "Use /debug/cairnstone-provider?chain={chain} for more details",
+          manifestPath: `/chains/${chain}/manifest`,
+          note: "CairnStone V5 manifest endpoint is only available via MCP, not REST. REST /chains/{chain}/manifest endpoint needs to be implemented."
+        }
+      }, 400);
+    }
+    return json({ ok: true, provider: result.provider, chain, graph: result.graph, report: groundingReport(result.graph), diagnostics: result.diagnostics });
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    return json({
+      ok: false,
+      provider: "cairnstone-v5",
+      chain,
+      error: errorMsg,
+      details: {
+        diagnostic: "Network or provider error. Check /debug/cairnstone-provider?chain={chain}",
+        type: "network_or_provider_error"
+      }
+    }, 502);
+  }
 }
 
 async function liveChainHtml(chain: string, env: WorkerEnv, searchParams: URLSearchParams): Promise<Response> {
-  const result = await providerFor("cairnstone-v5", env).buildGraph({ chain, navigation: true });
-  if (!result.ok || !result.graph) return json(result, 400);
-  const title = searchParams.get("title") ?? `CairnGraph chain: ${chain}`;
-  return htmlResponse(renderHtmlGraph(result.graph, { title, includeJson: searchParams.get("json") !== "false" }));
+  try {
+    const result = await providerFor("cairnstone-v5", env).buildGraph({ chain, navigation: true });
+    if (!result.ok || !result.graph) {
+      return json({
+        ok: false,
+        provider: "cairnstone-v5",
+        chain,
+        error: result.error ?? "graph provider failed",
+        details: {
+          diagnostic: "Use /debug/cairnstone-provider?chain={chain} for more details",
+          manifestPath: `/chains/${chain}/manifest`,
+          note: "CairnStone V5 manifest endpoint is only available via MCP, not REST. REST /chains/{chain}/manifest endpoint needs to be implemented."
+        }
+      }, 400);
+    }
+    const title = searchParams.get("title") ?? `CairnGraph chain: ${chain}`;
+    return htmlResponse(renderHtmlGraph(result.graph, { title, includeJson: searchParams.get("json") !== "false" }));
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    return json({
+      ok: false,
+      provider: "cairnstone-v5",
+      chain,
+      error: errorMsg,
+      details: {
+        diagnostic: "Network or provider error. Check /debug/cairnstone-provider?chain={chain}",
+        type: "network_or_provider_error"
+      }
+    }, 502);
+  }
 }
 
 async function graphFromProvider(body: GraphRequest, env: WorkerEnv): Promise<Response> {
@@ -120,7 +184,7 @@ function providerFor(name: GraphProviderName, env: WorkerEnv) {
 }
 
 function liveChainRoute(pathname: string): { chain: string; html: boolean } | undefined {
-  const match = pathname.match(/^\/graph\/chain\/([^/]+)(\/html)?$/);
+  const match = pathname.match(/^\/graph\/chain\/([^\/]+)(\/html)?$/);
   if (!match) return undefined;
   return { chain: decodeURIComponent(match[1] ?? ""), html: Boolean(match[2]) };
 }
@@ -147,6 +211,7 @@ function endpointList(): Array<{ method: string; path: string; description: stri
     { method: "GET", path: "/manifest", description: "CairnGraph Worker API manifest." },
     { method: "GET", path: "/graph/chain/:chain", description: "Build a live graph for a CairnStone chain through the configured V5 provider." },
     { method: "GET", path: "/graph/chain/:chain/html", description: "Render a live CairnStone chain as browser-ready HTML." },
+    { method: "GET", path: "/debug/cairnstone-provider", description: "Diagnose CairnStone V5 provider connectivity. Pass ?chain={chain} to test manifest fetch." },
     { method: "POST", path: "/graph/from-manifest", description: "Build a CairnGraph model from a CairnStone chain manifest." },
     { method: "POST", path: "/graph/from-v5", description: "Build a CairnGraph model from V5 payloads." },
     { method: "POST", path: "/graph/from-provider", description: "Build a graph through an explicitly selected provider." },
@@ -167,4 +232,73 @@ function htmlResponse(value: string, status = 200): Response {
 
 function corsHeaders(): Record<string, string> {
   return { "access-control-allow-origin": "*", "access-control-allow-methods": "GET,POST,OPTIONS", "access-control-allow-headers": "content-type,authorization", "access-control-max-age": "86400" };
+}
+
+async function debugCairnStoneProvider(chain: string, env: WorkerEnv): Promise<Response> {
+  const baseUrl = typeof env.CAIRNSTONE_V5_BASE_URL === "string" ? env.CAIRNSTONE_V5_BASE_URL : undefined;
+  const manifestPathTemplate = typeof env.CAIRNSTONE_V5_MANIFEST_PATH_TEMPLATE === "string" ? env.CAIRNSTONE_V5_MANIFEST_PATH_TEMPLATE : "/chains/{chain}/manifest";
+  
+  if (!baseUrl) {
+    return json({
+      ok: false,
+      error: "CairnStone V5 provider not configured",
+      configured: false,
+      baseUrl: null,
+      note: "Set CAIRNSTONE_V5_BASE_URL environment variable in wrangler.toml [vars] section"
+    }, 400);
+  }
+  
+  const manifestPath = manifestPathTemplate.replace("{chain}", encodeURIComponent(chain));
+  const manifestUrl = `${baseUrl}${manifestPath}`;
+  
+  let httpStatus: number | null = null;
+  let contentType: string | null = null;
+  let jsonParsed = false;
+  let topLevelKeys: string[] = [];
+  let errorMessage: string | null = null;
+  
+  try {
+    const response = await fetch(manifestUrl, { method: "GET", headers: { "accept": "application/json" } });
+    httpStatus = response.status;
+    contentType = response.headers.get("content-type");
+    
+    try {
+      const json = await response.json();
+      jsonParsed = true;
+      if (typeof json === "object" && json !== null && !Array.isArray(json)) {
+        topLevelKeys = Object.keys(json);
+      }
+    } catch {
+      jsonParsed = false;
+    }
+  } catch (err) {
+    errorMessage = err instanceof Error ? err.message : String(err);
+  }
+  
+  return json({
+    ok: httpStatus === 200,
+    chain,
+    configured: true,
+    baseUrl: baseUrl, // Safe to expose base URL (it's public)
+    manifestPathTemplate,
+    manifestPath,
+    manifestUrl,
+    httpStatus,
+    contentType,
+    jsonParsed,
+    topLevelKeys,
+    errorMessage,
+    diagnostic: httpStatus === 404 ? "Manifest endpoint not found. CairnStone V5 may only support MCP, not REST." : "See above for details"
+  }, httpStatus === 200 ? 200 : 400);
+}
+
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  };
+  return text.replace(/[&<>"']/g, (char) => map[char] ?? char);
 }
