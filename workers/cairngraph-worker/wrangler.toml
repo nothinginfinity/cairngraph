@@ -1,6 +1,8 @@
 name = "cairngraph-worker"
 main = "src/index.ts"
 compatibility_date = "2026-06-25"
+workers_dev = true
 
 [vars]
-CAIRNGRAPH_PHASE = "2A"
+CAIRNGRAPH_PHASE = "2E"
+CAIRNGRAPH_PROVIDER_MODE = "payload"
