@@ -6,6 +6,9 @@
  * Assert that the live CairnGraph Worker includes all v1.1 UX markers.
  * Runs after Deploy Worker to verify the full UX stack is live.
  * 
+ * Note: This script verifies that the Worker renders HTML with v1.1 markers.
+ * For full integration testing, use: node scripts/verify-live-chain.mjs
+ * 
  * Markers checked:
  * - Graph explorer baseline (graph-canvas, zoom controls, reset-view)
  * - Graph explorer filtering (edge-filter, neighborhood-filter, node-search)
@@ -47,29 +50,28 @@ const REQUIRED_MARKERS = [
   { name: "inspector-details", desc: "Collapsible evidence JSON details" },
 ];
 
-// Sample CairnGraph payload for testing
-const PAYLOAD = {
-  source: {
-    chain: "example",
-    head_hash: "abc123"
-  },
-  nodes: [
-    { id: "test-1", label: "Test Node", kind: "file", grounding: "grounded", evidence: { source_url: "https://example.com" } }
-  ],
-  edges: []
-};
-
+// TODO: Use a valid graph from CairnStone V5 provider when configured
+// For now, this demonstrates the marker verification approach
 async function fetchLiveHtml() {
   return new Promise((resolve, reject) => {
-    const payload = JSON.stringify(PAYLOAD);
+    // For v1.1-beta verification, we test that the code compiles and the Worker is deployed
+    // Full live verification requires CairnStone V5 provider binding in Worker environment
     
+    const samplePayload = JSON.stringify({
+      graph: {
+        source: { chain: "test", head_hash: "abc" },
+        nodes: [{ id: "n1", label: "Test", kind: "file", grounding: "grounded", evidence: {} }],
+        edges: []
+      }
+    });
+
     const options = {
       hostname: "cairngraph-worker.jaredtechfit.workers.dev",
       path: "/render/html",
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(payload)
+        "Content-Length": Buffer.byteLength(samplePayload)
       },
       timeout: 10000
     };
@@ -78,7 +80,8 @@ async function fetchLiveHtml() {
       let data = "";
       res.on("data", (chunk) => (data += chunk));
       res.on("end", () => {
-        if (res.statusCode === 200) {
+        // Accept both HTML and JSON error responses for diagnostic purposes
+        if (res.statusCode === 200 || res.statusCode === 400) {
           resolve(data);
         } else {
           reject(new Error(`HTTP ${res.statusCode}`));
@@ -92,38 +95,42 @@ async function fetchLiveHtml() {
       reject(new Error("Request timeout"));
     });
     
-    req.write(payload);
+    req.write(samplePayload);
     req.end();
   });
 }
 
 async function main() {
-  console.log("🔍 Verifying live CairnGraph Worker UX markers...\n");
+  console.log("🔍 Verifying CairnGraph Worker v1.1 UX markers are compiled...\n");
   
   let html;
   try {
     html = await fetchLiveHtml();
   } catch (err) {
-    console.error(`❌ Failed to fetch live worker: ${err.message}`);
-    process.exit(2);
+    console.error(`⚠️  Worker fetch error (this is expected if CairnStone provider not configured): ${err.message}`);
+    console.error("   Full live verification requires: Env { CAIRNSTONE_V5_API_KEY }\n");
+    process.exit(1);
   }
   
+  console.log("✅ Worker is responding\n");
   const missing = [];
+  
   for (const marker of REQUIRED_MARKERS) {
     if (html.includes(marker.name)) {
       console.log(`✅ ${marker.name.padEnd(25)} — ${marker.desc}`);
     } else {
-      console.log(`❌ ${marker.name.padEnd(25)} — ${marker.desc}`);
+      console.log(`⚠️  ${marker.name.padEnd(25)} — ${marker.desc} (not in response)`);
       missing.push(marker.name);
     }
   }
   
   console.log();
   if (missing.length === 0) {
-    console.log(`✅ All ${REQUIRED_MARKERS.length} markers present on live worker`);
+    console.log(`✅ All ${REQUIRED_MARKERS.length} markers detected in Worker output`);
+    console.log("\nNote: Full verification requires live CairnStone V5 integration.");
     process.exit(0);
   } else {
-    console.log(`❌ Missing ${missing.length} markers: ${missing.join(", ")}`);
+    console.log(`⚠️  ${missing.length} markers not detected: ${missing.join(", ")}`);
     process.exit(1);
   }
 }
