@@ -1,0 +1,73 @@
+{
+  "ok": true,
+  "chain": "loop-engineer-template-review",
+  "head_hash": "c6580ddea6224aa08c602ac38051a97e79e84fab412927bdc5dc8618d22491eb",
+  "head_updated_at": "2026-06-23T02:28:44.724Z",
+  "stone_count": 4,
+  "edge_count": 3,
+  "graph_complete": true,
+  "nodes": [
+    {
+      "hash": "481eb68ca6679078c203cfbf1855cf649133fbb10233424ae8483176f2b7f101",
+      "short_hash": "481eb68ca667",
+      "title": "loop-engineer-template README",
+      "author": "chatgpt",
+      "created_at": "2026-06-23T01:51:32.637Z",
+      "is_head": false,
+      "lod5": "loop-engineer-template README: 91 lines, 2 refs, 4.09x ratio"
+    },
+    {
+      "hash": "a1b8dcf9f413b67950e330f1e4566f59bf80629dfc8ab908403397fe2a3bab73",
+      "short_hash": "a1b8dcf9f413",
+      "title": "loop-engineer-template ARCHITECTURE",
+      "author": "chatgpt",
+      "created_at": "2026-06-23T01:52:03.051Z",
+      "is_head": false,
+      "lod5": "loop-engineer-template ARCHITECTURE: 142 lines, 2 refs, 5.61x ratio"
+    },
+    {
+      "hash": "80c8ab2731db848e7f871258a49c4ea04ab35d2836e6b78137fa47385e5a42ea",
+      "short_hash": "80c8ab2731db",
+      "title": "loop-engineer-template ship-change workflow",
+      "author": "chatgpt",
+      "created_at": "2026-06-23T01:52:50.236Z",
+      "is_head": false,
+      "lod5": "loop-engineer-template ship-change workflow: 312 lines, 4 refs, 6.56x ratio, 9 flags"
+    },
+    {
+      "hash": "c6580ddea6224aa08c602ac38051a97e79e84fab412927bdc5dc8618d22491eb",
+      "short_hash": "c6580ddea622",
+      "title": "CairnStone vNext LoopPlane + HarnessPlane + VerificationPlane notes",
+      "author": "chatgpt",
+      "created_at": "2026-06-23T02:28:44.724Z",
+      "is_head": true,
+      "lod5": "CairnStone vNext LoopPlane + HarnessPlane + VerificationPlane notes: 337 lines, 5 refs, 3.25x ratio, 1 flags"
+    }
+  ],
+  "edges": [
+    {
+      "id": "a1b8dcf9-parent-migrated",
+      "from_hash": "a1b8dcf9f413b67950e330f1e4566f59bf80629dfc8ab908403397fe2a3bab73",
+      "to_hash": "481eb68ca6679078c203cfbf1855cf649133fbb10233424ae8483176f2b7f101",
+      "edge_type": "references",
+      "note": "migrated from parent_hash",
+      "created_at": "2026-06-23T01:52:03.051Z"
+    },
+    {
+      "id": "80c8ab2731db-parent-migrated",
+      "from_hash": "80c8ab2731db848e7f871258a49c4ea04ab35d2836e6b78137fa47385e5a42ea",
+      "to_hash": "a1b8dcf9f413b67950e330f1e4566f59bf80629dfc8ab908403397fe2a3bab73",
+      "edge_type": "references",
+      "note": "migrated from parent_hash",
+      "created_at": "2026-06-23T01:52:50.236Z"
+    },
+    {
+      "id": "c6580ddea622-parent-migrated",
+      "from_hash": "c6580ddea6224aa08c602ac38051a97e79e84fab412927bdc5dc8618d22491eb",
+      "to_hash": "a1b8dcf9f413b67950e330f1e4566f59bf80629dfc8ab908403397fe2a3bab73",
+      "edge_type": "references",
+      "note": "migrated from parent_hash",
+      "created_at": "2026-06-23T02:28:44.724Z"
+    }
+  ]
+}
