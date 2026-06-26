@@ -31,24 +31,35 @@ Phase 1B added ref-level grounding:
 - refs carry `ref_id`, path, line range, raw key, keywords, preview, and optional GitHub line URL
 - tests cover ref creation and Mermaid rendering
 
-Phase 1C adds the CairnStone V5 adapter:
+Phase 1C added the CairnStone V5 adapter:
 
 - V5 chain manifest plus V5 stone payloads become a fully grounded CairnGraph model
 - stone-level LOD2 compressed indexes merge into manifest nodes
 - V5 border metadata can produce GitHub source navigation metadata
 
+Phase 1D adds grounding completeness navigation:
+
+- refs expand into raw source nodes
+- refs expand into source line/file nodes
+- `expands_to` edges provide navigation targets
+- grounding reports expose unresolved evidence gaps and completeness status
+
 Implemented files:
 
 - packages/graph-engine/src/types.ts
 - packages/graph-engine/src/from-chain-manifest.ts
+- packages/graph-engine/src/navigation.ts
+- packages/graph-engine/src/grounding-report.ts
 - packages/adapters/src/cairnstone-v5.ts
 - packages/renderer/src/mermaid.ts
 - examples/loop-engineer-template-review.manifest.json
 - tests/graph-engine.test.ts
 - tests/cairnstone-v5-adapter.test.ts
+- tests/grounding-navigation.test.ts
 - docs/PHASE_1A.md
 - docs/PHASE_1B.md
 - docs/PHASE_1C.md
+- docs/PHASE_1D.md
 
 ## Initial goals
 
