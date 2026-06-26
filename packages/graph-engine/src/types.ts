@@ -92,6 +92,18 @@ export type CairnGraph = {
   created_at: string;
 };
 
+export type CairnStoneCompressedRef = {
+  ref_id: string;
+  stone_hash?: string;
+  path: string;
+  line_start: number;
+  line_end: number;
+  keywords?: string[];
+  preview?: string;
+  raw_key?: string;
+  flags?: Array<{ type: string; count: number }>;
+};
+
 export type CairnStoneManifestNode = {
   hash: string;
   short_hash?: string;
@@ -100,6 +112,13 @@ export type CairnStoneManifestNode = {
   created_at?: string;
   is_head?: boolean;
   lod5?: string;
+  refs?: CairnStoneCompressedRef[];
+  layers?: {
+    lod2?: {
+      compressed_index?: CairnStoneCompressedRef[];
+    };
+  };
+  metadata?: Record<string, unknown>;
 };
 
 export type CairnStoneManifestEdge = {
