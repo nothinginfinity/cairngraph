@@ -36,6 +36,7 @@ Current v1 work:
 
 - live CairnStone HTTP client scaffold
 - Worker live-provider wiring
+- live chain endpoint scaffold pending CI verification
 - v1 architecture contract
 - v1 API contract
 - v1 roadmap
