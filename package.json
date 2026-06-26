@@ -1,6 +1,6 @@
 {
   "name": "cairngraph",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": false,
   "description": "Grounded, traceable, blast-radius-aware visual navigation for the CairnStone graph.",
   "type": "module",
@@ -11,7 +11,8 @@
     "candidate": "npm run check && npm test",
     "worker:check": "tsc --noEmit -p tsconfig.json",
     "worker:dev": "wrangler dev workers/cairngraph-worker/src/index.ts --config workers/cairngraph-worker/wrangler.toml",
-    "worker:deploy:dry": "wrangler deploy --dry-run --config workers/cairngraph-worker/wrangler.toml"
+    "worker:deploy:dry": "wrangler deploy --dry-run --config workers/cairngraph-worker/wrangler.toml",
+    "verify:live": "node scripts/verify-live-worker.mjs"
   },
   "keywords": [
     "cairnstone",
