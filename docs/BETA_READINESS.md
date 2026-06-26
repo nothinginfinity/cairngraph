@@ -1,6 +1,6 @@
 # v1.0-beta Readiness
 
-CairnGraph is ready for strict beta configuration.
+CairnGraph has passed strict beta live-provider verification.
 
 Verified baseline:
 
@@ -13,6 +13,8 @@ v1.0-alpha.5 deployed and live verified
 Phase 3F safe live-chain verification green
 Phase 3G safe provider-config verification green
 Phase 3H strict beta runbook green
+Strict Live Provider Config green
+Strict Live Chain Verification green
 ```
 
 Live Worker:
@@ -21,25 +23,43 @@ Live Worker:
 https://cairngraph-worker.jaredtechfit.workers.dev/
 ```
 
-Strict beta blocker:
+Live CairnStone V5 provider:
 
 ```text
-CAIRNSTONE_V5_BASE_URL
+https://cairnstone-v5.jaredtechfit.workers.dev
 ```
 
-Strict beta unlock sequence:
+Strict beta verified:
 
 ```text
-set CAIRNSTONE_V5_BASE_URL
-redeploy Worker
-run Live Provider Config with require_live_provider=true
-run Live Chain Verification with require_live_provider=true
+/health reports cairnstone-v5 as configured
+/graph/chain/cairngraph returns live graph JSON
+/graph/chain/cairngraph/html returns interactive live graph HTML
+```
+
+Working now:
+
+```text
+payload-first graph build
+Mermaid rendering
+interactive HTML rendering
+blast-radius JSON
+blast-radius HTML
+safe live-chain route behavior
+strict live-provider route behavior
+live CairnStone chain rendering
 ```
 
 Not yet claimed:
 
 ```text
-live CairnStone data verified
-strict beta complete
 CairnStone HEAD updated
+v1.0 final released
+```
+
+Next milestone:
+
+```text
+record deployed v1 orientation in CairnStone
+prepare v1.0 final release checklist
 ```
