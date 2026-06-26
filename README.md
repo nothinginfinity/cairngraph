@@ -6,6 +6,19 @@ It turns CairnStone chains, HEAD stones, refs, receipts, graph edges, GitHub sou
 
 CairnGraph is not just a diagram renderer. It is intended to become the visual operating system for the CairnStone graph.
 
+## Live preview
+
+```text
+https://cairngraph-worker.jaredtechfit.workers.dev/
+```
+
+Verified manually:
+
+```text
+GET /health
+GET /manifest
+```
+
 ## Core promise
 
 Every visible node should be traceable back to evidence.
@@ -36,23 +49,11 @@ Phase 2C added the browser-ready HTML renderer.
 
 Phase 2D added blast-radius view rendering.
 
-Phase 2E prepares the first deploy candidate:
+Phase 2E prepared the deploy candidate.
 
-- candidate script
-- Worker dry-run script
-- deploy-candidate workflow
-- deploy checklist
-- payload-first Worker deployment posture
+Phase 2F deployed the first payload-first Worker preview.
 
-Deploy is not automatic.
-
-## Validation
-
-```text
-npm install --package-lock=false
-npm run candidate
-npm run worker:deploy:dry
-```
+Phase 3A will verify live POST endpoints with fixture payloads.
 
 ## Repository status
 
