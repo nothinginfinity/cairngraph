@@ -20,13 +20,28 @@ test("builds a grounded CairnGraph model from a CairnStone chain manifest", () =
   assert.ok(head);
   assert.equal(head.evidence.stone_hash, fixture.head_hash);
   assert.equal(head.grounding, "grounded");
-  assert.equal(head.metadata?.ref_count, 5);
+  assert.equal(head.metadata?.ref_count, 3);
 
   const chainEdges = graph.edges.filter((edge) => edge.edge_type === "contains" || edge.edge_type === "head_of");
-  assert.equal(chainEdges.length, fixture.nodes?.length);
+  assert.equal(chainEdges.length, (fixture.nodes?.length ?? 0) + 3);
 
   const manifestEdges = graph.edges.filter((edge) => edge.evidence.edge_id);
   assert.equal(manifestEdges.length, fixture.edges?.length);
+});
+
+test("creates grounded ref nodes from compressed source windows", () => {
+  const graph = buildCairnGraphFromChainManifest(fixture);
+  const refs = graph.nodes.filter((node) => node.kind === "ref");
+
+  assert.equal(refs.length, 3);
+  assert.equal(refs[0]?.evidence.ref_id, "fsl:1adf5e14c179ebb9");
+  assert.equal(refs[0]?.evidence.path, "content.txt");
+  assert.equal(refs[0]?.evidence.line_start, 1);
+  assert.equal(refs[0]?.evidence.line_end, 80);
+  assert.match(refs[0]?.evidence.source_url ?? "", /#L1-L80$/);
+
+  const refContainmentEdges = graph.edges.filter((edge) => edge.label === "contains ref");
+  assert.equal(refContainmentEdges.length, 3);
 });
 
 test("renders a Mermaid flowchart from the grounded graph", () => {
@@ -36,6 +51,7 @@ test("renders a Mermaid flowchart from the grounded graph", () => {
   assert.match(mermaid, /^flowchart TD/);
   assert.match(mermaid, /loop-engineer-template-review/);
   assert.match(mermaid, /HEAD/);
+  assert.match(mermaid, /fsl/);
   assert.match(mermaid, /graph_id/);
   assert.doesNotMatch(mermaid, /undefined/);
 });
