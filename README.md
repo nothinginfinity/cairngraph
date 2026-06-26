@@ -18,20 +18,28 @@ A CairnGraph view should answer:
 - What is the blast radius if this node changes?
 - Can I navigate from the diagram to the exact source window?
 
-## Phase 1A status
+## Phase 1 status
 
-Implemented:
+Phase 1A implemented the first pipeline:
+
+CairnStone chain manifest -> CairnGraph model -> Mermaid flowchart
+
+Phase 1B adds ref-level grounding:
+
+- compressed refs become `ref` nodes
+- stones link to refs with grounded containment edges
+- refs carry `ref_id`, path, line range, raw key, keywords, preview, and optional GitHub line URL
+- tests cover ref creation and Mermaid rendering
+
+Implemented files:
 
 - packages/graph-engine/src/types.ts
 - packages/graph-engine/src/from-chain-manifest.ts
 - packages/renderer/src/mermaid.ts
 - examples/loop-engineer-template-review.manifest.json
 - tests/graph-engine.test.ts
-- GitHub Actions CI scaffold
-
-Current pipeline:
-
-CairnStone chain manifest -> CairnGraph model -> Mermaid flowchart
+- docs/PHASE_1A.md
+- docs/PHASE_1B.md
 
 ## Initial goals
 
