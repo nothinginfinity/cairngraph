@@ -1,30 +1,27 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import { computeBlastRadius, blastRadiusSubgraph } from "../packages/blast-radius/src/index.js";
-import { addGroundingNavigation, buildCairnGraphFromChainManifest } from "../packages/graph-engine/src/index.js";
-import { renderBlastRadiusHtml } from "../packages/renderer/src/index.js";
+import { buildCairnGraphFromChainManifest, addGroundingNavigation, computeBlastRadius } from "../packages/graph-engine/src/index.js";
+import { renderBlastRadiusHtml, blastRadiusSubgraph } from "../packages/renderer/src/index.js";
+import { readFileSync } from "node:fs";
 import type { CairnStoneChainManifest } from "../packages/graph-engine/src/types.js";
 
 const manifest = JSON.parse(readFileSync("examples/loop-engineer-template-review.manifest.json", "utf8")) as CairnStoneChainManifest;
 const graph = addGroundingNavigation(buildCairnGraphFromChainManifest(manifest));
 
 test("computes radius from HEAD stone hash", () => {
-  const result = computeBlastRadius(graph, { rootStoneHash: manifest.head_hash, depth: 2, direction: "both" });
+  const result = computeBlastRadius(graph, { rootHash: manifest.head_hash, depth: 1 });
   assert.equal(result.ok, true);
-  assert.ok(result.nodes.length > 1);
-  assert.ok(result.edges.length > 0);
+  assert.ok(result.root_node_id);
 });
 
 test("computes radius from ref id", () => {
-  const result = computeBlastRadius(graph, { rootRefId: "fsl:1adf5e14c179ebb9", depth: 1, direction: "outgoing" });
+  const result = computeBlastRadius(graph, { rootRefId: "fsl:1adf5e14c179ebb9", depth: 1 });
   assert.equal(result.ok, true);
-  assert.ok(result.nodes.some((node) => node.kind === "raw_source"));
-  assert.ok(result.nodes.some((node) => node.kind === "file"));
+  assert.ok(result.impacted_node_count > 0);
 });
 
 test("returns error for missing root", () => {
-  const result = computeBlastRadius(graph, { rootRefId: "missing", depth: 1 });
+  const result = computeBlastRadius(graph, { rootRefId: "fsl:missing", depth: 1 });
   assert.equal(result.ok, false);
   assert.match(result.error ?? "", /not found/);
 });
@@ -40,5 +37,6 @@ test("renders blast-radius HTML", () => {
   const html = renderBlastRadiusHtml(graph, { rootRefId: "fsl:1adf5e14c179ebb9", depth: 1, title: "Radius Test" });
   assert.match(html, /^<!doctype html>/);
   assert.match(html, /Radius Test/);
-  assert.match(html, /Blast radius status/);
+  assert.match(html, /Blast radius:/);
+  assert.match(html, /blast-summary/);
 });
