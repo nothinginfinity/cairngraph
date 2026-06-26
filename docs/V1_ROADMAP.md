@@ -2,7 +2,7 @@
 
 ## v1.0-alpha.1
 
-Status: started.
+Status: complete.
 
 Scope:
 
@@ -13,11 +13,13 @@ Scope:
 
 ## v1.0-alpha.2
 
+Status: complete.
+
 Scope:
 
 - wire Worker to create live CairnStone provider from runtime config
 - keep payload provider as default
-- add Worker tests for configured and unconfigured live provider
+- add Worker tests for configured and unconfigured live provider states
 
 ## v1.0-alpha.3
 
