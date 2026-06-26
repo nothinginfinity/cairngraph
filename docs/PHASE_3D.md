@@ -1,23 +1,30 @@
 # Phase 3D: v1.0-alpha.4 Interactive HTML Shell
 
-Phase 3D begins the interactive graph shell for CairnGraph v1.0-alpha.4.
+Phase 3D adds the interactive graph shell for CairnGraph v1.0-alpha.4.
 
-Goal:
+Status:
 
 ```text
-turn static HTML graph output into a navigable browser shell
+verified green
 ```
 
-Planned capabilities:
+Verified:
+
+```text
+CI
+Deploy Candidate
+```
+
+Implemented capabilities:
 
 ```text
 node search
 node kind filters
 grounding filters
+visible node count
 click-to-inspect node detail panel
 incoming and outgoing edge panel
 source/ref evidence links
-blast-radius summary panel
 embedded graph JSON for client-side interaction
 ```
 
@@ -33,13 +40,13 @@ no breaking payload-first render endpoint
 Compatibility rule:
 
 ```text
-/render/html must keep returning valid standalone HTML
+/render/html keeps returning valid standalone HTML
 ```
 
-Verification:
+Next deployment verification:
 
 ```text
-CI
-Deploy Candidate
-Live Verification after redeploy
+redeploy Worker
+run Live Verification
+confirm /render/html contains interactive shell markers
 ```
