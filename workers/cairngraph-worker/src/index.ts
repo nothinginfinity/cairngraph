@@ -87,12 +87,6 @@ export default {
         return htmlResponse(renderBlastRadiusHtml(await graphFromRenderRequest(body, env), { ...blastOptions(body), title: body.title, includeJson: body.includeJson ?? true }));
       }
 
-      if (request.method === "GET" && url.pathname === "/debug/cairnstone-provider") {
-        const chain = url.searchParams.get("chain");
-        if (!chain) return json({ ok: false, error: "chain query parameter required" }, 400);
-        return debugCairnStoneProvider(chain, env);
-      }
-
       return json({ ok: false, error: "not_found", endpoints: endpointList() }, 404);
     } catch (error) {
       return json({ ok: false, error: error instanceof Error ? error.message : "unknown error" }, 500);
@@ -101,6 +95,15 @@ export default {
 };
 
 async function liveChainGraph(chain: string, env: WorkerEnv): Promise<Response> {
+  if (!isCairnStoneConfigured(env)) {
+    return json({
+      ok: false,
+      provider: "cairnstone-v5",
+      chain,
+      error: "CairnStone V5 provider is not configured"
+    }, 400);
+  }
+  
   try {
     const result = await providerFor("cairnstone-v5", env).buildGraph({ chain, navigation: true });
     if (!result.ok || !result.graph) {
@@ -133,6 +136,15 @@ async function liveChainGraph(chain: string, env: WorkerEnv): Promise<Response> 
 }
 
 async function liveChainHtml(chain: string, env: WorkerEnv, searchParams: URLSearchParams): Promise<Response> {
+  if (!isCairnStoneConfigured(env)) {
+    return json({
+      ok: false,
+      provider: "cairnstone-v5",
+      chain,
+      error: "CairnStone V5 provider is not configured"
+    }, 400);
+  }
+  
   try {
     const result = await providerFor("cairnstone-v5", env).buildGraph({ chain, navigation: true });
     if (!result.ok || !result.graph) {
@@ -183,6 +195,10 @@ function providerFor(name: GraphProviderName, env: WorkerEnv) {
   return createGraphProvider(name);
 }
 
+function isCairnStoneConfigured(env: WorkerEnv): boolean {
+  return typeof env.CAIRNSTONE_V5_BASE_URL === "string" && env.CAIRNSTONE_V5_BASE_URL.length > 0;
+}
+
 function liveChainRoute(pathname: string): { chain: string; html: boolean } | undefined {
   const match = pathname.match(/^\/graph\/chain\/([^\/]+)(\/html)?$/);
   if (!match) return undefined;
@@ -198,7 +214,7 @@ async function readJson<T>(request: Request): Promise<T> {
 }
 
 function providerList(env: WorkerEnv): Array<{ name: GraphProviderName; status: string; description: string }> {
-  const liveConfigured = typeof env.CAIRNSTONE_V5_BASE_URL === "string" && env.CAIRNSTONE_V5_BASE_URL.length > 0;
+  const liveConfigured = isCairnStoneConfigured(env);
   return [
     { name: "payload", status: "implemented", description: "Builds graphs from manifests and stone payloads supplied in the request body." },
     { name: "cairnstone-v5", status: liveConfigured ? "configured" : "scaffold", description: "Provider boundary for live CairnStone V5 fetching." }
