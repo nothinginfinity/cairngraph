@@ -23,7 +23,7 @@ Scope:
 
 ## v1.0-alpha.3
 
-Status: implemented.
+Status: implemented, pending CI verification.
 
 Scope:
 
