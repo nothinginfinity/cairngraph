@@ -34,7 +34,7 @@ Scope:
 
 ## v1.0-alpha.4
 
-Status: next.
+Status: complete and green.
 
 Scope:
 
@@ -42,6 +42,16 @@ Scope:
 - graph search
 - node detail panel
 - source/ref deep links
+
+## v1.0-alpha.5
+
+Status: next.
+
+Scope:
+
+- redeploy alpha.4 Worker
+- extend Live Verification to assert interactive shell markers
+- record live alpha.4 verification
 
 ## v1.0-beta
 
