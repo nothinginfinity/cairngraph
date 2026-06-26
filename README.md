@@ -30,13 +30,14 @@ Phase 1C added the CairnStone V5 adapter.
 
 Phase 1D added grounding completeness navigation.
 
-Phase 2A adds the Worker API scaffold:
+Phase 2A added the Worker API scaffold.
 
-- GET /health
-- GET /manifest
-- POST /graph/from-manifest
-- POST /graph/from-v5
-- POST /render/mermaid
+Phase 2B adds the graph provider abstraction:
+
+- payload provider implemented
+- CairnStone V5 provider scaffolded
+- Worker routes graph creation through providers
+- POST /graph/from-provider added
 
 Deploy is not required yet.
 
@@ -47,12 +48,14 @@ Deploy is not required yet.
 - packages/graph-engine/src/navigation.ts
 - packages/graph-engine/src/grounding-report.ts
 - packages/adapters/src/cairnstone-v5.ts
+- packages/adapters/src/graph-provider.ts
 - packages/renderer/src/mermaid.ts
 - workers/cairngraph-worker/src/index.ts
 - examples/loop-engineer-template-review.manifest.json
 - tests/graph-engine.test.ts
 - tests/cairnstone-v5-adapter.test.ts
 - tests/grounding-navigation.test.ts
+- tests/graph-provider.test.ts
 - tests/worker-api.test.ts
 
 ## Repository status
