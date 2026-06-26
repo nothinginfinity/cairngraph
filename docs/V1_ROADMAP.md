@@ -63,13 +63,25 @@ Scope:
 - verify live chain routes fail safely when provider is not configured
 - prepare strict live-provider verification path
 
+## Phase 3G
+
+Status: complete in safe provider-config mode.
+
+Scope:
+
+- add live provider config workflow
+- verify `/health` exposes the live provider boundary
+- prepare strict provider-config verification path
+
 ## v1.0-beta
 
 Status: next.
 
 Scope:
 
-- configure live provider in preview
+- set real `CAIRNSTONE_V5_BASE_URL`
+- redeploy Worker
+- run strict provider config verification
 - run strict live chain verification
 - verify `/graph/chain/:chain` against real CairnStone data
 - verify `/graph/chain/:chain/html` against real CairnStone data
