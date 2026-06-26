@@ -2,7 +2,7 @@
 
 Cloudflare Worker surface for CairnGraph.
 
-Phase 2B introduces the provider abstraction. Deploy is not required yet.
+Phase 2C adds the first browser-ready HTML renderer. Deploy is not required yet.
 
 Implemented endpoints:
 
@@ -12,11 +12,20 @@ Implemented endpoints:
 - `POST /graph/from-v5`
 - `POST /graph/from-provider`
 - `POST /render/mermaid`
+- `POST /render/html`
 
 Providers:
 
 - `payload`: implemented. Accepts manifests and stone payloads supplied in the request body.
 - `cairnstone-v5`: scaffold. Defines the boundary for future live CairnStone V5 fetching.
+
+Phase 2C HTML output includes:
+
+- grounding report metrics
+- node list
+- selected-node evidence inspection
+- incoming/outgoing edges
+- optional embedded graph JSON
 
 Planned endpoints:
 
@@ -24,7 +33,6 @@ Planned endpoints:
 - `GET /graph/stone/:hash`
 - `GET /graph/ref/:ref`
 - `GET /graph/blast-radius/:hash`
-- `GET /render/html`
 - `GET /render/svg`
 
-Phase 2C should add the first browser-ready HTML renderer while the live CairnStone V5 fetch client remains behind the provider boundary.
+Phase 2D should add an SVG/static graph projection or begin blast-radius rendering.
