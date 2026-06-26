@@ -5,8 +5,9 @@
   "description": "Grounded, traceable, blast-radius-aware visual navigation for the CairnStone graph.",
   "type": "module",
   "scripts": {
-    "test": "node --test",
-    "check": "tsc --noEmit"
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/tests/*.test.js",
+    "check": "tsc --noEmit -p tsconfig.json"
   },
   "keywords": [
     "cairnstone",
@@ -17,5 +18,8 @@
     "cloudflare"
   ],
   "author": "nothinginfinity",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
 }
