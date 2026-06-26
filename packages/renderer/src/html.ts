@@ -434,3 +434,45 @@ if (graph.nodes.length) inspect(graph.nodes[0].id);
 </script>
 </body>
 </html>`;
+}
+
+function blastSummaryPanel(blast: BlastRadiusMetadata): string {
+  return `<div id="blast-summary" class="blast-summary">
+<strong>⚡ Blast radius:</strong> depth ${blast.depth} · direction ${escapeHtml(blast.direction)} · impacted ${blast.impacted_node_count} nodes, ${blast.impacted_edge_count} edges · risk score ${blast.risk_score}
+</div>`;
+}
+
+function renderNodeCard(node: CairnGraphNode, isBlastAffected: boolean): string {
+  const sourceUrl = node.evidence.source_url;
+  const blastClass = isBlastAffected ? `data-blast-affected="true"` : `data-blast-affected="false"`;
+  return `<article class="node" data-node-id="${escapeAttr(node.id)}" ${blastClass}>
+<div class="kind">${escapeHtml(node.kind)} · ${escapeHtml(node.grounding)}</div>
+<div class="label">${escapeHtml(node.label)}</div>
+<div class="evidence">
+${node.evidence.stone_hash ? `stone ${escapeHtml(shortHash(node.evidence.stone_hash))}<br>` : ""}
+${node.evidence.ref_id ? `ref ${escapeHtml(node.evidence.ref_id)}<br>` : ""}
+${node.evidence.raw_key ? `raw ${escapeHtml(node.evidence.raw_key)}<br>` : ""}
+${sourceUrl ? `<a href="${escapeAttr(sourceUrl)}" target="_blank" rel="noreferrer">source lines</a>` : ""}
+</div>
+</article>`;
+}
+
+function renderEdge(edge: CairnGraphEdge): string {
+  return `<div class="edge"><strong>${escapeHtml(edge.edge_type)}</strong> ${escapeHtml(edge.from)} → ${escapeHtml(edge.to)}<br><small>${escapeHtml(edge.label ?? "")}</small></div>`;
+}
+
+function metric(label: string, value: string | number | boolean, className = ""): string {
+  return `<div class="metric"><span>${escapeHtml(label)}</span><strong class="${escapeAttr(className)}">${escapeHtml(String(value))}</strong></div>`;
+}
+
+function shortHash(value: string): string {
+  return value.slice(0, 12);
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[char] ?? char));
+}
+
+function escapeAttr(value: string): string {
+  return escapeHtml(value);
+}
