@@ -6,3 +6,4 @@ workers_dev = true
 [vars]
 CAIRNGRAPH_PHASE = "2E"
 CAIRNGRAPH_PROVIDER_MODE = "payload"
+CAIRNSTONE_V5_BASE_URL = "https://cairnstone-v5.jaredtechfit.workers.dev"
