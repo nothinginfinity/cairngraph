@@ -28,18 +28,6 @@ Live verification:
 npm run verify:live
 ```
 
-## Core promise
-
-Every visible node should be traceable back to evidence.
-
-A CairnGraph view should answer:
-
-- What stone or ref is this node grounded in?
-- Which chain and HEAD does it belong to?
-- Which files, commits, tests, receipts, and graph edges support it?
-- What is the blast radius if this node changes?
-- Can I navigate from the diagram to the exact source window?
-
 ## v1.0 direction
 
 CairnGraph v1.0 turns the deployed payload-first Worker into a live CairnStone graph navigation service.
@@ -47,11 +35,12 @@ CairnGraph v1.0 turns the deployed payload-first Worker into a live CairnStone g
 Current v1 work:
 
 - live CairnStone HTTP client scaffold
+- Worker live-provider wiring
 - v1 architecture contract
 - v1 API contract
 - v1 roadmap
 
-The payload-first Worker remains stable while the live provider is wired behind the existing provider boundary.
+The payload-first Worker remains stable while the live provider is enabled only when runtime configuration exists.
 
 ## Repository status
 
