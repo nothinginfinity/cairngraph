@@ -18,12 +18,27 @@ A CairnGraph view should answer:
 - What is the blast radius if this node changes?
 - Can I navigate from the diagram to the exact source window?
 
+## Phase 1A status
+
+Implemented:
+
+- packages/graph-engine/src/types.ts
+- packages/graph-engine/src/from-chain-manifest.ts
+- packages/renderer/src/mermaid.ts
+- examples/loop-engineer-template-review.manifest.json
+- tests/graph-engine.test.ts
+- GitHub Actions CI scaffold
+
+Current pipeline:
+
+CairnStone chain manifest -> CairnGraph model -> Mermaid flowchart
+
 ## Initial goals
 
 - Visualize any CairnStone chain manifest.
 - Resolve HEAD before rendering.
 - Prefer grounded nodes over inferred nodes.
-- Carry exact `source_refs` into every diagram artifact.
+- Carry exact source refs into every diagram artifact.
 - Support blast-radius, timeline, architecture, file, function, ref, and BytePlane views.
 - Provide renderers for Mermaid first, then interactive HTML/SVG/Canvas graph views.
 
