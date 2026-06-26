@@ -15,6 +15,6 @@ jobs:
         with:
           node-version: 20
       - run: rm -f package-lock.json
-      - run: npm install
+      - run: npm install --package-lock=false
       - run: npm run check
       - run: npm test
