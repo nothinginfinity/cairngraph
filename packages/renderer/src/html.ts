@@ -14,6 +14,7 @@ export function renderHtmlGraph(graph: CairnGraph, options: HtmlRenderOptions = 
   const includeJson = options.includeJson ?? true;
   const kinds = Array.from(new Set(nodes.map((node) => node.kind))).sort();
   const groundings = Array.from(new Set(nodes.map((node) => node.grounding))).sort();
+  const edgeTypes = Array.from(new Set(edges.map((edge) => edge.edge_type))).sort();
 
   return `<!doctype html>
 <html lang="en">
@@ -22,7 +23,7 @@ export function renderHtmlGraph(graph: CairnGraph, options: HtmlRenderOptions = 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <style>
-:root { color-scheme: light dark; --bg: #0f172a; --panel: #111827; --muted: #94a3b8; --text: #e5e7eb; --line: #334155; --accent: #38bdf8; --good: #22c55e; --warn: #f59e0b; --bad: #ef4444; }
+:root { color-scheme: light dark; --bg: #0f172a; --panel: #111827; --muted: #94a3b8; --text: #e5e7eb; --line: #334155; --accent: #38bdf8; --good: #22c55e; --warn: #f59e0b; --bad: #ef4444; --node: #1e293b; }
 body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
 header { padding: 28px; border-bottom: 1px solid var(--line); background: linear-gradient(135deg, #020617, #172554); }
 h1 { margin: 0 0 8px; font-size: 28px; }
@@ -34,7 +35,9 @@ main { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 16px
 .metric strong { display: block; font-size: 22px; }
 .controls { display: grid; gap: 10px; margin: 14px 0; }
 .controls label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+.inline-control { display: flex !important; grid-template-columns: none !important; align-items: center; gap: 8px !important; }
 input, select { border: 1px solid var(--line); border-radius: 10px; padding: 9px; background: #020617; color: var(--text); }
+input[type="checkbox"] { width: auto; }
 .node-list { display: flex; flex-direction: column; gap: 8px; max-height: 70vh; overflow: auto; }
 .node { border: 1px solid var(--line); border-radius: 12px; padding: 10px; cursor: pointer; background: #0b1220; }
 .node:hover { border-color: var(--accent); }
@@ -44,6 +47,17 @@ input, select { border: 1px solid var(--line); border-radius: 10px; padding: 9px
 .label { margin-top: 4px; font-weight: 700; }
 .evidence { margin-top: 8px; color: var(--muted); font-size: 12px; word-break: break-word; }
 .graph { min-height: 70vh; }
+.explorer-shell { border: 1px solid var(--line); border-radius: 16px; background: #020617; overflow: hidden; margin-bottom: 16px; }
+.graph-canvas { min-height: 420px; position: relative; }
+.graph-canvas svg { width: 100%; height: 420px; display: block; }
+.graph-edge { stroke: var(--line); stroke-width: 1.6; opacity: .82; }
+.graph-edge.selected { stroke: var(--accent); stroke-width: 2.5; opacity: 1; }
+.graph-node circle { fill: var(--node); stroke: var(--accent); stroke-width: 1.5; }
+.graph-node.selected circle { fill: #075985; stroke-width: 3; }
+.graph-node.neighbor circle { stroke: var(--good); }
+.graph-node text { fill: var(--text); font-size: 11px; pointer-events: none; }
+.graph-node button { cursor: pointer; }
+.graph-empty { padding: 24px; color: var(--muted); }
 .edge { border-left: 3px solid var(--accent); padding: 8px 0 8px 12px; margin: 8px 0; color: var(--muted); }
 .edge button { margin-left: 8px; border: 1px solid var(--line); border-radius: 999px; background: #020617; color: var(--text); cursor: pointer; }
 a { color: var(--accent); }
@@ -82,6 +96,14 @@ ${nodes.map(renderNodeCard).join("\n")}
 </div>
 </section>
 <section class="card graph">
+<h2>Graph explorer</h2>
+<p>Use the explorer to see topology, select nodes, filter edge types, and isolate a selected node neighborhood.</p>
+<div class="controls" aria-label="Graph explorer controls">
+<label>Edge type<select id="edge-filter"><option value="">all edge types</option>${edgeTypes.map((edgeType) => `<option value="${escapeAttr(edgeType)}">${escapeHtml(edgeType)}</option>`).join("")}</select></label>
+<label class="inline-control"><input id="neighborhood-filter" type="checkbox"> selected neighborhood only</label>
+<div class="toolbar-status" id="graph-status">Graph explorer ready</div>
+</div>
+<div class="explorer-shell"><div class="graph-canvas" id="graph-canvas"></div></div>
 <h2>Selected evidence</h2>
 <p id="selected-help">Click a node to inspect its evidence and incoming/outgoing navigation edges.</p>
 <div id="selected"></div>
@@ -98,24 +120,36 @@ const selected = document.getElementById('selected');
 const searchInput = document.getElementById('node-search');
 const kindFilter = document.getElementById('kind-filter');
 const groundingFilter = document.getElementById('grounding-filter');
+const edgeFilter = document.getElementById('edge-filter');
+const neighborhoodFilter = document.getElementById('neighborhood-filter');
 const visibleCount = document.getElementById('visible-count');
+const graphStatus = document.getElementById('graph-status');
+const graphCanvas = document.getElementById('graph-canvas');
 const cards = Array.from(document.querySelectorAll('[data-node-id]'));
+let selectedNodeId = graph.nodes[0]?.id ?? '';
 function esc(value) { return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 function searchable(node) { return [node.id, node.kind, node.label, node.grounding, JSON.stringify(node.evidence ?? {})].join(' ').toLowerCase(); }
-function applyFilters() {
+function matchingNodeIds() {
   const query = searchInput.value.trim().toLowerCase();
   const kind = kindFilter.value;
   const grounding = groundingFilter.value;
-  let shown = 0;
-  cards.forEach(card => {
-    const node = graph.nodes.find(item => item.id === card.dataset.nodeId);
-    const match = node && (!query || searchable(node).includes(query)) && (!kind || node.kind === kind) && (!grounding || node.grounding === grounding);
-    card.classList.toggle('hidden', !match);
-    if (match) shown += 1;
+  const base = graph.nodes.filter(node => (!query || searchable(node).includes(query)) && (!kind || node.kind === kind) && (!grounding || node.grounding === grounding));
+  if (!neighborhoodFilter.checked || !selectedNodeId) return new Set(base.map(node => node.id));
+  const neighbors = new Set([selectedNodeId]);
+  graph.edges.forEach(edge => {
+    if (edge.from === selectedNodeId) neighbors.add(edge.to);
+    if (edge.to === selectedNodeId) neighbors.add(edge.from);
   });
-  visibleCount.textContent = 'Showing ' + shown + ' of ' + graph.nodes.length + ' nodes';
+  return new Set(base.filter(node => neighbors.has(node.id)).map(node => node.id));
+}
+function applyFilters() {
+  const ids = matchingNodeIds();
+  cards.forEach(card => card.classList.toggle('hidden', !ids.has(card.dataset.nodeId)));
+  visibleCount.textContent = 'Showing ' + ids.size + ' of ' + graph.nodes.length + ' nodes';
+  renderGraphExplorer(ids);
 }
 function inspect(nodeId) {
+  selectedNodeId = nodeId;
   cards.forEach(card => card.classList.toggle('selected', card.dataset.nodeId === nodeId));
   const node = graph.nodes.find(item => item.id === nodeId);
   if (!node) return;
@@ -126,6 +160,7 @@ function inspect(nodeId) {
     evidenceHtml(node) +
     '<h3>Outgoing</h3>' + (outgoing.length ? outgoing.map(edgeLine).join('') : '<p>No outgoing edges.</p>') +
     '<h3>Incoming</h3>' + (incoming.length ? incoming.map(edgeLine).join('') : '<p>No incoming edges.</p>');
+  renderGraphExplorer(matchingNodeIds());
 }
 function evidenceHtml(node) {
   const evidence = node.evidence ?? {};
@@ -137,11 +172,51 @@ function edgeLine(edge) {
   const source = graph.nodes.find(item => item.id === edge.from);
   return '<div class="edge"><strong>' + esc(edge.edge_type) + '</strong> ' + esc(source?.label) + ' → ' + esc(target?.label) + '<button type="button" data-jump="' + esc(edge.to) + '">to</button><button type="button" data-jump="' + esc(edge.from) + '">from</button><br><small>' + esc(edge.label ?? '') + '</small></div>';
 }
+function renderGraphExplorer(nodeIds) {
+  const activeNodes = graph.nodes.filter(node => nodeIds.has(node.id));
+  const edgeType = edgeFilter.value;
+  const activeIdSet = new Set(activeNodes.map(node => node.id));
+  const activeEdges = graph.edges.filter(edge => activeIdSet.has(edge.from) && activeIdSet.has(edge.to) && (!edgeType || edge.edge_type === edgeType));
+  if (!activeNodes.length) {
+    graphCanvas.innerHTML = '<div class="graph-empty">No graph nodes match the current filters.</div>';
+    graphStatus.textContent = 'Showing 0 nodes and 0 edges';
+    return;
+  }
+  const width = 900;
+  const height = 420;
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const radius = Math.max(90, Math.min(180, 42 + activeNodes.length * 7));
+  const positions = new Map();
+  activeNodes.forEach((node, index) => {
+    const angle = activeNodes.length === 1 ? 0 : (Math.PI * 2 * index) / activeNodes.length - Math.PI / 2;
+    positions.set(node.id, { x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius });
+  });
+  const edgeSvg = activeEdges.map(edge => {
+    const from = positions.get(edge.from);
+    const to = positions.get(edge.to);
+    const selectedEdge = edge.from === selectedNodeId || edge.to === selectedNodeId;
+    return '<line class="graph-edge ' + (selectedEdge ? 'selected' : '') + '" x1="' + from.x + '" y1="' + from.y + '" x2="' + to.x + '" y2="' + to.y + '"><title>' + esc(edge.edge_type + ': ' + (edge.label ?? '')) + '</title></line>';
+  }).join('');
+  const nodeSvg = activeNodes.map(node => {
+    const point = positions.get(node.id);
+    const isSelected = node.id === selectedNodeId;
+    const isNeighbor = graph.edges.some(edge => (edge.from === selectedNodeId && edge.to === node.id) || (edge.to === selectedNodeId && edge.from === node.id));
+    const label = truncate(node.label, 24);
+    return '<g class="graph-node ' + (isSelected ? 'selected' : '') + ' ' + (isNeighbor ? 'neighbor' : '') + '" data-graph-node-id="' + esc(node.id) + '" transform="translate(' + point.x + ' ' + point.y + ')"><circle r="18"></circle><text x="24" y="4">' + esc(label) + '</text><title>' + esc(node.label) + '</title></g>';
+  }).join('');
+  graphCanvas.innerHTML = '<svg role="img" aria-label="Interactive CairnGraph topology" viewBox="0 0 ' + width + ' ' + height + '">' + edgeSvg + nodeSvg + '</svg>';
+  graphStatus.textContent = 'Showing ' + activeNodes.length + ' nodes and ' + activeEdges.length + ' edges';
+  graphCanvas.querySelectorAll('[data-graph-node-id]').forEach(item => item.addEventListener('click', () => inspect(item.dataset.graphNodeId)));
+}
+function truncate(value, length) { const text = String(value ?? ''); return text.length > length ? text.slice(0, length - 1) + '…' : text; }
 cards.forEach(card => card.addEventListener('click', () => inspect(card.dataset.nodeId)));
 selected.addEventListener('click', event => { const target = event.target; if (target && target.dataset && target.dataset.jump) inspect(target.dataset.jump); });
 searchInput.addEventListener('input', applyFilters);
 kindFilter.addEventListener('change', applyFilters);
 groundingFilter.addEventListener('change', applyFilters);
+edgeFilter.addEventListener('change', applyFilters);
+neighborhoodFilter.addEventListener('change', applyFilters);
 applyFilters();
 if (graph.nodes.length) inspect(graph.nodes[0].id);
 </script>
