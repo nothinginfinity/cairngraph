@@ -1,50 +1,75 @@
-# Phase 3A Plan: Fixture-Backed Live Verification
+# Phase 3A: Fixture-Backed Live Verification
 
-Phase 3A verifies the deployed Worker with real payloads.
+Phase 3A verifies the deployed Worker with real CairnStone-shaped payloads.
 
-Goal:
+Live Worker:
 
 ```text
-prove the deployed Worker can accept CairnStone-shaped payloads and return browser-ready grounded graph views
+https://cairngraph-worker.jaredtechfit.workers.dev
 ```
 
-Targets:
+## Added tooling
 
 ```text
+scripts/verify-live-worker.mjs
+npm run verify:live
+.github/workflows/live-verification.yml
+```
+
+## Verified targets
+
+```text
+GET /health
+GET /manifest
 POST /render/html
 POST /graph/blast-radius
 POST /render/blast-radius/html
 ```
 
-Inputs:
+## Fixture
 
 ```text
 examples/loop-engineer-template-review.manifest.json
 ```
 
-Expected outputs:
+## Local verification
 
 ```text
-HTML graph response
-blast-radius JSON response
-blast-radius HTML response
+npm install --package-lock=false
+npm run candidate
+npm run verify:live
 ```
 
-Validation criteria:
+Override Worker URL:
 
 ```text
-HTTP 200
-content-type is correct
-response contains chain name
-response contains source/ref evidence
-blast-radius response contains impacted node count
-blast-radius HTML contains blast radius status
+CAIRNGRAPH_WORKER_URL=https://cairngraph-worker.jaredtechfit.workers.dev npm run verify:live
 ```
 
-After Phase 3A:
+## GitHub verification
+
+Run the GitHub Actions workflow:
 
 ```text
-re-stone the repository
-set the latest CairnGraph orientation as HEAD
-begin live CairnStone V5 provider integration
+Live Verification
+```
+
+The workflow accepts a `worker_url` input and runs the same fixture-backed checks.
+
+## Success criteria
+
+```text
+HTTP 200 for all targets
+/render/html returns text/html
+/graph/blast-radius returns impacted nodes and edges
+/render/blast-radius/html returns blast-radius HTML
+responses contain chain/ref/evidence markers
+```
+
+## Next phase
+
+After Live Verification is green:
+
+```text
+Phase 3B: re-stone the repository and mark deployed CairnGraph orientation as HEAD
 ```
