@@ -102,6 +102,18 @@ Remaining before v1.0 final:
 - set a new CairnStone HEAD when graph tooling permits
 - prepare final release checklist
 
+## v1.0-final-prep
+
+Status: in progress.
+
+Scope:
+
+- add final release checklist (docs/V1_FINAL_CHECKLIST.md)
+- add CairnStone HEAD handoff (docs/CAIRNSTONE_HEAD_HANDOFF.md)
+- record deployed v1 orientation in CairnStone
+- set CairnStone HEAD only after successful graph operation
+- prepare v1.0.0 final tag
+
 ## v1.0
 
 Scope:
