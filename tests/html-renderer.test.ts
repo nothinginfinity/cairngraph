@@ -18,6 +18,11 @@ test("renders browser-ready interactive HTML graph view", () => {
   assert.match(html, /Grounding report/);
   assert.match(html, /Selected evidence/);
   assert.match(html, /Interactive controls/);
+  assert.match(html, /Graph explorer/);
+  assert.match(html, /graph-canvas/);
+  assert.match(html, /edge-filter/);
+  assert.match(html, /neighborhood-filter/);
+  assert.match(html, /Interactive CairnGraph topology/);
   assert.match(html, /node-search/);
   assert.match(html, /kind-filter/);
   assert.match(html, /grounding-filter/);
