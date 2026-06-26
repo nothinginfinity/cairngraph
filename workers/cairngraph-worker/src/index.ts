@@ -178,7 +178,20 @@ async function liveChainHtml(chain: string, env: WorkerEnv, searchParams: URLSea
 }
 
 async function graphFromProvider(body: GraphRequest, env: WorkerEnv): Promise<Response> {
-  const result = await providerFor(body.provider ?? "payload", env).buildGraph({ chain: body.chain, manifest: body.manifest, stones: body.stones, navigation: body.navigation });
+  const providerName: GraphProviderName = body.provider ?? "payload";
+
+  // Guard: cairnstone-v5 requires CAIRNSTONE_V5_BASE_URL to be set.
+  // Return the same shape as the GET live-chain routes so callers get a
+  // consistent "not configured" response regardless of which route they use.
+  if (providerName === "cairnstone-v5" && !isCairnStoneConfigured(env)) {
+    return json({
+      ok: false,
+      provider: "cairnstone-v5",
+      error: "CairnStone V5 provider is not configured"
+    }, 400);
+  }
+
+  const result = await providerFor(providerName, env).buildGraph({ chain: body.chain, manifest: body.manifest, stones: body.stones, navigation: body.navigation });
   if (!result.ok || !result.graph) return json(result, 400);
   return json({ ok: true, provider: result.provider, graph: result.graph, report: body.report === false ? undefined : groundingReport(result.graph), mermaid: body.mermaid ? renderMermaidFlowchart(result.graph, { includeMetadata: true }) : undefined, html: body.html ? renderHtmlGraph(result.graph, { includeJson: false }) : undefined, diagnostics: result.diagnostics });
 }
@@ -295,7 +308,7 @@ async function debugCairnStoneProvider(chain: string, env: WorkerEnv): Promise<R
     ok: httpStatus === 200,
     chain,
     configured: true,
-    baseUrl: baseUrl, // Safe to expose base URL (it's public)
+    baseUrl: baseUrl,
     manifestPathTemplate,
     manifestPath,
     manifestUrl,

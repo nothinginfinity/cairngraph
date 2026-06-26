@@ -7,15 +7,25 @@ export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
 export type CairnStoneHttpClientConfig = {
   baseUrl: string;
   apiToken?: string;
+  /**
+   * Optional REST path template for fetching chain manifests.
+   * Tokens: {chain}
+   *
+   * When provided, getChainManifest() issues a REST GET to this path.
+   * When omitted (default), getChainManifest() uses MCP JSON-RPC POST /mcp
+   * because CairnStone V5 exposes chain manifests only via MCP.
+   */
   manifestPathTemplate?: string;
   stonePathTemplate?: string;
   fetchImpl?: FetchLike;
 };
 
+const MCP_DEFAULT_PATH = "/mcp";
+
 export class CairnStoneHttpClient implements CairnStoneV5Client {
   private readonly baseUrl: string;
   private readonly apiToken?: string;
-  private readonly manifestPathTemplate: string;
+  private readonly manifestPathTemplate: string | null;
   private readonly stonePathTemplate: string;
   private readonly fetchImpl: FetchLike;
 
@@ -23,7 +33,9 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
     if (!config.baseUrl) throw new Error("CairnStone HTTP client requires baseUrl");
     this.baseUrl = config.baseUrl.replace(/\/+$/, "");
     this.apiToken = config.apiToken;
-    this.manifestPathTemplate = config.manifestPathTemplate ?? "/chains/{chain}/manifest";
+    // Treat the default sentinel value as "use MCP" — only honour an
+    // explicitly-supplied template as a REST override.
+    this.manifestPathTemplate = config.manifestPathTemplate ?? null;
     this.stonePathTemplate = config.stonePathTemplate ?? "/v1/stones/{hash}";
     // Explicitly call globalThis.fetch so the Cloudflare Workers runtime never
     // throws "Illegal invocation" regardless of how the bundler hoists the ref.
@@ -31,9 +43,15 @@ export class CairnStoneHttpClient implements CairnStoneV5Client {
   }
 
   async getChainManifest(chain: string): Promise<CairnStoneChainManifest> {
-    // CairnStone V5 exposes chain manifests only via MCP JSON-RPC.
-    // There is no REST GET /chains/{chain}/manifest route.
-    const url = `${this.baseUrl}/mcp`;
+    // When a REST path template is explicitly configured, honour it.
+    if (this.manifestPathTemplate !== null) {
+      const path = fillTemplate(this.manifestPathTemplate, { chain });
+      return this.getJson<CairnStoneChainManifest>(path);
+    }
+
+    // Default: CairnStone V5 exposes chain manifests only via MCP JSON-RPC.
+    // There is no public REST GET /chains/{chain}/manifest route.
+    const url = `${this.baseUrl}${MCP_DEFAULT_PATH}`;
 
     const rpcBody = JSON.stringify({
       jsonrpc: "2.0",
