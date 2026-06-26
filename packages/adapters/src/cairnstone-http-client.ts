@@ -1,5 +1,6 @@
 import type { CairnStoneChainManifest } from "../../graph-engine/src/types.js";
-import type { CairnStoneV5Client, CairnStoneV5StonePayload } from "./graph-provider.js";
+import type { CairnStoneV5StonePayload } from "./cairnstone-v5.js";
+import type { CairnStoneV5Client } from "./graph-provider.js";
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
