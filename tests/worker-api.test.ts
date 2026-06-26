@@ -5,14 +5,37 @@ import worker from "../workers/cairngraph-worker/src/index.js";
 
 const manifest = JSON.parse(readFileSync("examples/loop-engineer-template-review.manifest.json", "utf8"));
 
-test("worker health endpoint exposes Phase 2D endpoints", async () => {
+test("worker health exposes v1 alpha provider states", async () => {
   const response = await worker.fetch(new Request("https://cairngraph.test/health"), {});
   assert.equal(response.status, 200);
-  const body = await response.json() as { ok: boolean; phase: string; endpoints: Array<{ path: string }> };
+  const body = await response.json() as { ok: boolean; phase: string; providers: Array<{ name: string; status: string }> };
   assert.equal(body.ok, true);
-  assert.equal(body.phase, "2D");
-  assert.ok(body.endpoints.some((endpoint) => endpoint.path === "/graph/blast-radius"));
-  assert.ok(body.endpoints.some((endpoint) => endpoint.path === "/render/blast-radius/html"));
+  assert.equal(body.phase, "v1.0-alpha.2");
+  assert.ok(body.providers.some((provider) => provider.name === "payload" && provider.status === "implemented"));
+  assert.ok(body.providers.some((provider) => provider.name === "cairnstone-v5" && provider.status === "scaffold"));
+});
+
+test("worker health reports configured live provider when base url is present", async () => {
+  const response = await worker.fetch(new Request("https://cairngraph.test/health"), { CAIRNSTONE_V5_BASE_URL: "https://cairnstone.example.test" });
+  assert.equal(response.status, 200);
+  const body = await response.json() as { providers: Array<{ name: string; status: string }> };
+  assert.ok(body.providers.some((provider) => provider.name === "cairnstone-v5" && provider.status === "configured"));
+});
+
+test("worker builds graph from manifest", async () => {
+  const response = await worker.fetch(new Request("https://cairngraph.test/graph/from-manifest", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ manifest, navigation: true, mermaid: true, html: true })
+  }), {});
+  assert.equal(response.status, 200);
+  const body = await response.json() as { ok: boolean; provider: string; graph: { nodes: unknown[] }; mermaid?: string; html?: string; report?: { complete: boolean } };
+  assert.equal(body.ok, true);
+  assert.equal(body.provider, "payload");
+  assert.ok(body.graph.nodes.length > 0);
+  assert.match(body.mermaid ?? "", /^flowchart TD/);
+  assert.match(body.html ?? "", /^<!doctype html>/);
+  assert.equal(body.report?.complete, true);
 });
 
 test("worker computes blast radius from manifest", async () => {
