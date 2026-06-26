@@ -5,7 +5,7 @@ import { renderBlastRadiusHtml, renderHtmlGraph, renderMermaidFlowchart } from "
 import type { CairnGraph } from "../../../packages/graph-engine/src/types.js";
 import type { GraphProviderName, GraphProviderRequest } from "../../../packages/adapters/src/graph-provider.js";
 
-const VERSION = "1.0.0-alpha.2";
+const VERSION = "1.0.0-alpha.3";
 
 type WorkerEnv = Record<string, unknown>;
 
@@ -33,11 +33,20 @@ export default {
       if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
 
       if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
-        return json({ ok: true, service: "cairngraph-worker", version: VERSION, deploy_required: false, phase: "v1.0-alpha.2", providers: providerList(env), endpoints: endpointList() });
+        return json({ ok: true, service: "cairngraph-worker", version: VERSION, deploy_required: false, phase: "v1.0-alpha.3", providers: providerList(env), endpoints: endpointList() });
       }
 
       if (request.method === "GET" && url.pathname === "/manifest") {
-        return json({ schema_version: "1.0.0", name: "cairngraph-worker", title: "CairnGraph Worker", version: VERSION, phase: "v1.0-alpha.2", providers: providerList(env), endpoints: endpointList() });
+        return json({ schema_version: "1.0.0", name: "cairngraph-worker", title: "CairnGraph Worker", version: VERSION, phase: "v1.0-alpha.3", providers: providerList(env), endpoints: endpointList() });
+      }
+
+      const liveChain = liveChainRoute(url.pathname);
+      if (request.method === "GET" && liveChain && !liveChain.html) {
+        return liveChainGraph(liveChain.chain, env);
+      }
+
+      if (request.method === "GET" && liveChain && liveChain.html) {
+        return liveChainHtml(liveChain.chain, env, url.searchParams);
       }
 
       if (request.method === "POST" && url.pathname === "/graph/from-manifest") return graphFromProvider({ ...(await readJson<GraphRequest>(request)), provider: "payload" }, env);
@@ -79,6 +88,19 @@ export default {
   }
 };
 
+async function liveChainGraph(chain: string, env: WorkerEnv): Promise<Response> {
+  const result = await providerFor("cairnstone-v5", env).buildGraph({ chain, navigation: true });
+  if (!result.ok || !result.graph) return json(result, 400);
+  return json({ ok: true, provider: result.provider, chain, graph: result.graph, report: groundingReport(result.graph), diagnostics: result.diagnostics });
+}
+
+async function liveChainHtml(chain: string, env: WorkerEnv, searchParams: URLSearchParams): Promise<Response> {
+  const result = await providerFor("cairnstone-v5", env).buildGraph({ chain, navigation: true });
+  if (!result.ok || !result.graph) return json(result, 400);
+  const title = searchParams.get("title") ?? `CairnGraph chain: ${chain}`;
+  return htmlResponse(renderHtmlGraph(result.graph, { title, includeJson: searchParams.get("json") !== "false" }));
+}
+
 async function graphFromProvider(body: GraphRequest, env: WorkerEnv): Promise<Response> {
   const result = await providerFor(body.provider ?? "payload", env).buildGraph({ chain: body.chain, manifest: body.manifest, stones: body.stones, navigation: body.navigation });
   if (!result.ok || !result.graph) return json(result, 400);
@@ -95,6 +117,12 @@ async function graphFromRenderRequest(body: RenderRequest, env: WorkerEnv): Prom
 function providerFor(name: GraphProviderName, env: WorkerEnv) {
   if (name === "cairnstone-v5") return createGraphProvider(name, createCairnStoneHttpClientFromEnv(env));
   return createGraphProvider(name);
+}
+
+function liveChainRoute(pathname: string): { chain: string; html: boolean } | undefined {
+  const match = pathname.match(/^\/graph\/chain\/([^/]+)(\/html)?$/);
+  if (!match) return undefined;
+  return { chain: decodeURIComponent(match[1] ?? ""), html: Boolean(match[2]) };
 }
 
 function blastOptions(body: BlastRadiusRequest): BlastRadiusOptions {
@@ -117,6 +145,8 @@ function endpointList(): Array<{ method: string; path: string; description: stri
   return [
     { method: "GET", path: "/health", description: "Service health, providers, and endpoint summary." },
     { method: "GET", path: "/manifest", description: "CairnGraph Worker API manifest." },
+    { method: "GET", path: "/graph/chain/:chain", description: "Build a live graph for a CairnStone chain through the configured V5 provider." },
+    { method: "GET", path: "/graph/chain/:chain/html", description: "Render a live CairnStone chain as browser-ready HTML." },
     { method: "POST", path: "/graph/from-manifest", description: "Build a CairnGraph model from a CairnStone chain manifest." },
     { method: "POST", path: "/graph/from-v5", description: "Build a CairnGraph model from V5 payloads." },
     { method: "POST", path: "/graph/from-provider", description: "Build a graph through an explicitly selected provider." },
