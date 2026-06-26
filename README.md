@@ -40,31 +40,18 @@ A CairnGraph view should answer:
 - What is the blast radius if this node changes?
 - Can I navigate from the diagram to the exact source window?
 
-## Phase status
+## v1.0 direction
 
-Phase 1A implemented the first pipeline.
+CairnGraph v1.0 turns the deployed payload-first Worker into a live CairnStone graph navigation service.
 
-Phase 1B added ref-level grounding.
+Current v1 work:
 
-Phase 1C added the CairnStone V5 adapter.
+- live CairnStone HTTP client scaffold
+- v1 architecture contract
+- v1 API contract
+- v1 roadmap
 
-Phase 1D added grounding completeness navigation.
-
-Phase 2A added the Worker API scaffold.
-
-Phase 2B added the graph provider abstraction.
-
-Phase 2C added the browser-ready HTML renderer.
-
-Phase 2D added blast-radius view rendering.
-
-Phase 2E prepared the deploy candidate.
-
-Phase 2F deployed the first payload-first Worker preview.
-
-Phase 3A added repeatable live POST verification.
-
-Phase 3B records the live-verified checkpoint and updates CairnStone graph HEAD.
+The payload-first Worker remains stable while the live provider is wired behind the existing provider boundary.
 
 ## Repository status
 
