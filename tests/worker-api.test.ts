@@ -5,14 +5,16 @@ import worker from "../workers/cairngraph-worker/src/index.js";
 
 const manifest = JSON.parse(readFileSync("examples/loop-engineer-template-review.manifest.json", "utf8"));
 
-test("worker health exposes v1 alpha provider states", async () => {
+test("worker health exposes v1 alpha provider states and live chain endpoints", async () => {
   const response = await worker.fetch(new Request("https://cairngraph.test/health"), {});
   assert.equal(response.status, 200);
-  const body = await response.json() as { ok: boolean; phase: string; providers: Array<{ name: string; status: string }> };
+  const body = await response.json() as { ok: boolean; phase: string; providers: Array<{ name: string; status: string }>; endpoints: Array<{ path: string }> };
   assert.equal(body.ok, true);
-  assert.equal(body.phase, "v1.0-alpha.2");
+  assert.equal(body.phase, "v1.0-alpha.3");
   assert.ok(body.providers.some((provider) => provider.name === "payload" && provider.status === "implemented"));
   assert.ok(body.providers.some((provider) => provider.name === "cairnstone-v5" && provider.status === "scaffold"));
+  assert.ok(body.endpoints.some((endpoint) => endpoint.path === "/graph/chain/:chain"));
+  assert.ok(body.endpoints.some((endpoint) => endpoint.path === "/graph/chain/:chain/html"));
 });
 
 test("worker health reports configured live provider when base url is present", async () => {
@@ -20,6 +22,24 @@ test("worker health reports configured live provider when base url is present", 
   assert.equal(response.status, 200);
   const body = await response.json() as { providers: Array<{ name: string; status: string }> };
   assert.ok(body.providers.some((provider) => provider.name === "cairnstone-v5" && provider.status === "configured"));
+});
+
+test("live chain JSON endpoint rejects safely when provider is not configured", async () => {
+  const response = await worker.fetch(new Request("https://cairngraph.test/graph/chain/cairngraph"), {});
+  assert.equal(response.status, 400);
+  const body = await response.json() as { ok: boolean; provider: string; error: string };
+  assert.equal(body.ok, false);
+  assert.equal(body.provider, "cairnstone-v5");
+  assert.match(body.error, /not configured/);
+});
+
+test("live chain HTML endpoint rejects safely when provider is not configured", async () => {
+  const response = await worker.fetch(new Request("https://cairngraph.test/graph/chain/cairngraph/html"), {});
+  assert.equal(response.status, 400);
+  const body = await response.json() as { ok: boolean; provider: string; error: string };
+  assert.equal(body.ok, false);
+  assert.equal(body.provider, "cairnstone-v5");
+  assert.match(body.error, /not configured/);
 });
 
 test("worker builds graph from manifest", async () => {
@@ -64,7 +84,7 @@ test("worker renders blast radius HTML", async () => {
   assert.match(html, /Blast radius status/);
 });
 
-test("worker still rejects unconfigured live provider", async () => {
+test("worker still rejects unconfigured live provider through POST provider route", async () => {
   const response = await worker.fetch(new Request("https://cairngraph.test/graph/from-provider", {
     method: "POST",
     headers: { "content-type": "application/json" },
