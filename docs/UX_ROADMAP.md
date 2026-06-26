@@ -30,7 +30,7 @@ dynamic viewBox for viewport management
 
 ## v1.1-alpha.3
 
-Status: implemented, pending CI verification.
+Status: green, CI verified, Deploy Candidate verified.
 
 Scope:
 
@@ -45,15 +45,22 @@ preserved UX (zoom, pan, filters, selection)
 
 ## v1.1-alpha.4
 
+Status: implemented, pending CI verification.
+
 Scope:
 
 ```text
-source and ref inspector (GitHub links)
-stone detail drawer
-copy evidence payloads
-blast history/replay
-keyboard shortcuts
+structured evidence inspector with node metadata
+copy-to-clipboard for identifiers (node id, stone hash, ref id)
+stone/ref details drawer (native HTML/CSS/JS)
+collapsible evidence JSON viewer
+GitHub source URL links with target="_blank"
+copy evidence JSON button
+action buttons for data navigation
+preserved UX (zoom, pan, filters, selection, blast overlay)
 ```
+
+Details: See docs/PHASE_4D.md
 
 ## v1.1-beta
 
