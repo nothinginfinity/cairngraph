@@ -19,6 +19,12 @@ GET /health
 GET /manifest
 ```
 
+Fixture-backed live verification:
+
+```text
+npm run verify:live
+```
+
 ## Core promise
 
 Every visible node should be traceable back to evidence.
@@ -53,7 +59,7 @@ Phase 2E prepared the deploy candidate.
 
 Phase 2F deployed the first payload-first Worker preview.
 
-Phase 3A will verify live POST endpoints with fixture payloads.
+Phase 3A adds repeatable live POST verification.
 
 ## Repository status
 
