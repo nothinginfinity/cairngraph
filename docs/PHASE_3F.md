@@ -10,6 +10,7 @@ v1.0-alpha.2 green
 v1.0-alpha.3 green
 v1.0-alpha.4 green
 v1.0-alpha.5 deployed and live verified
+Live Chain Verification green in safe default mode
 ```
 
 Live Worker:
