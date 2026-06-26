@@ -24,22 +24,31 @@ Phase 1A implemented the first pipeline:
 
 CairnStone chain manifest -> CairnGraph model -> Mermaid flowchart
 
-Phase 1B adds ref-level grounding:
+Phase 1B added ref-level grounding:
 
 - compressed refs become `ref` nodes
 - stones link to refs with grounded containment edges
 - refs carry `ref_id`, path, line range, raw key, keywords, preview, and optional GitHub line URL
 - tests cover ref creation and Mermaid rendering
 
+Phase 1C adds the CairnStone V5 adapter:
+
+- V5 chain manifest plus V5 stone payloads become a fully grounded CairnGraph model
+- stone-level LOD2 compressed indexes merge into manifest nodes
+- V5 border metadata can produce GitHub source navigation metadata
+
 Implemented files:
 
 - packages/graph-engine/src/types.ts
 - packages/graph-engine/src/from-chain-manifest.ts
+- packages/adapters/src/cairnstone-v5.ts
 - packages/renderer/src/mermaid.ts
 - examples/loop-engineer-template-review.manifest.json
 - tests/graph-engine.test.ts
+- tests/cairnstone-v5-adapter.test.ts
 - docs/PHASE_1A.md
 - docs/PHASE_1B.md
+- docs/PHASE_1C.md
 
 ## Initial goals
 
