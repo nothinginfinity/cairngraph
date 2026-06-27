@@ -103,7 +103,7 @@ async function liveChainGraph(chain: string, env: WorkerEnv): Promise<Response> 
       error: "CairnStone V5 provider is not configured"
     }, 400);
   }
-  
+
   try {
     const result = await providerFor("cairnstone-v5", env).buildGraph({ chain, navigation: true });
     if (!result.ok || !result.graph) {
@@ -143,7 +143,7 @@ async function liveChainHtml(chain: string, env: WorkerEnv, searchParams: URLSea
       error: "CairnStone V5 provider is not configured"
     }, 400);
   }
-  
+
   try {
     const result = await providerFor("cairnstone-v5", env).buildGraph({ chain, navigation: true });
     if (!result.ok || !result.graph) {
@@ -208,9 +208,16 @@ function isCairnStoneConfigured(env: WorkerEnv): boolean {
 }
 
 function liveChainRoute(pathname: string): { chain: string; html: boolean } | undefined {
-  const match = pathname.match(/^\/graph\/chain\/([^\/]+)(\/html)?$/);
-  if (!match) return undefined;
-  return { chain: decodeURIComponent(match[1] ?? ""), html: Boolean(match[2]) };
+  const prefix = "/graph/chain/";
+  if (!pathname.startsWith(prefix)) return undefined;
+  const rest = pathname.slice(prefix.length);
+  if (!rest) return undefined;
+  if (rest.endsWith("/html")) {
+    const chain = rest.slice(0, -"/html".length);
+    if (!chain) return undefined;
+    return { chain: decodeURIComponent(chain), html: true };
+  }
+  return { chain: decodeURIComponent(rest), html: false };
 }
 
 function blastOptions(body: BlastRadiusRequest): BlastRadiusOptions {
@@ -261,7 +268,7 @@ function corsHeaders(): Record<string, string> {
 async function debugCairnStoneProvider(chain: string, env: WorkerEnv): Promise<Response> {
   const baseUrl = typeof env.CAIRNSTONE_V5_BASE_URL === "string" ? env.CAIRNSTONE_V5_BASE_URL : undefined;
   const manifestPathTemplate = typeof env.CAIRNSTONE_V5_MANIFEST_PATH_TEMPLATE === "string" ? env.CAIRNSTONE_V5_MANIFEST_PATH_TEMPLATE : "/chains/{chain}/manifest";
-  
+
   if (!baseUrl) {
     return json({
       ok: false,
@@ -271,19 +278,17 @@ async function debugCairnStoneProvider(chain: string, env: WorkerEnv): Promise<R
       note: "Set CAIRNSTONE_V5_BASE_URL environment variable in wrangler.toml [vars] section"
     }, 400);
   }
-  
+
   const manifestPath = manifestPathTemplate.replace("{chain}", encodeURIComponent(chain));
-  // Canonical URL shown in output — no cache-busting params.
   const manifestUrl = `${baseUrl}${manifestPath}`;
-  // Actual fetch URL — cache-busting ts param forces a fresh origin request.
   const attemptedUrl = `${manifestUrl}?_cg_debug_ts=${Date.now()}`;
-  
+
   let httpStatus: number | null = null;
   let contentType: string | null = null;
   let jsonParsed = false;
   let topLevelKeys: string[] = [];
   let errorMessage: string | null = null;
-  
+
   try {
     const response = await fetch(attemptedUrl, {
       method: "GET",
@@ -297,7 +302,7 @@ async function debugCairnStoneProvider(chain: string, env: WorkerEnv): Promise<R
     });
     httpStatus = response.status;
     contentType = response.headers.get("content-type");
-    
+
     try {
       const parsed = await response.json();
       jsonParsed = true;
@@ -310,7 +315,7 @@ async function debugCairnStoneProvider(chain: string, env: WorkerEnv): Promise<R
   } catch (err) {
     errorMessage = err instanceof Error ? err.message : String(err);
   }
-  
+
   return json({
     ok: httpStatus === 200,
     chain,
