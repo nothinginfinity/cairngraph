@@ -7,4 +7,4 @@ workers_dev = true
 CAIRNGRAPH_PHASE = "2E"
 CAIRNGRAPH_PROVIDER_MODE = "payload"
 CAIRNSTONE_V5_BASE_URL = "https://cairnstone-v5.jaredtechfit.workers.dev"
-CAIRNSTONE_V5_MANIFEST_PATH_TEMPLATE = "/chains/[chain]/manifest"
+CAIRNSTONE_V5_MANIFEST_PATH_TEMPLATE = "/chains/{chain}/manifest"
